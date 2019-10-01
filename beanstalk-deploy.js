@@ -186,7 +186,7 @@ function main() {
             console.log('Environment update successful!')
             process.exit(0);
         } else {
-            console.warn(`Update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
+            console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
             process.exit(1);
         }
     }).catch(err => {
@@ -198,6 +198,8 @@ function main() {
 //Wait until the new version is deployed, printing any events happening during the wait...
 function waitForDeployment(application, environmentName, versionLabel, start) {
     let counter = 0;
+    let degraded = false;
+    let healThreshold;
     return new Promise((resolve, reject) => {
         function update() {
             describeEvents(application, environmentName, start).then(result => {
@@ -217,9 +219,32 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                 counter++;
                 let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
                 if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
-                    console.log(`Deployment finished. Version updated to ${env.VersionLabel}`);
-                    console.log(`Status for ${application}-${environmentName} is ${env.Status}, Health: ${env.Health}, HealthStatus: ${env.HealthStatus}`);
-                    resolve(env);
+                    if (!degraded) {
+                        console.log(`Deployment finished. Version updated to ${env.VersionLabel}`);
+                        console.log(`Status for ${application}-${environmentName} is ${env.Status}, Health: ${env.Health}, HealthStatus: ${env.HealthStatus}`);
+                       
+                        if (env.Health === 'Green') {
+                            resolve(env);   
+                        } else {
+                            console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it 30 seconds to recover...`);
+                            degraded = true;
+                            healThreshold = new Date(new Date().getTime() + 30 * 1000);
+                            setTimeout(update, 5000);
+                        }
+                    } else {
+                        if (env.Health === 'Green') {
+                            console.log(`Environment has recovered, health is now ${env.Health}, health status is ${env.HealthStatus}`);
+                            resolve(env);
+                        } else {
+                            if (new Date().getTime() > healThreshold.getTime()) {
+                                reject(new Error(`Environment still has health ${env.Health} 30 seconds after update finished!`));
+                            } else {
+                                let left = Math.floor((healThreshold.getTime() - new Date().getTime()) / 1000);
+                                console.warn(`Environment still has health: ${env.Health} and health status ${env.HealthStatus}. Waiting ${left} more seconds before failing...`);
+                                setTimeout(update, 5000);
+                            }
+                        }
+                    }
                 } else {
                     if (counter % 6 === 0) {
                         console.log(`${new Date().toISOString().substr(11,8)} INFO: Still updating, status is "${env.Status}", health is "${env.Health}", health status is "${env.HealthStatus}"`);
