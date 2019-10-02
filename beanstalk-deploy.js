@@ -112,48 +112,15 @@ function expect(status, result) {
     }
 }
 
-function main() {
-
-    let application, environmentName, versionLabel, region, file;
-    if (IS_GITHUB_ACTION) { //Running in GitHub Actions
-        application = process.env.INPUT_APPLICATION_NAME;
-        environmentName = process.env.INPUT_ENVIRONMENT_NAME;
-        versionLabel = process.env.INPUT_VERSION_LABEL;
-        file = process.env.INPUT_DEPLOYMENT_PACKAGE;
-
-        awsApiRequest.accessKey = process.env.INPUT_AWS_ACCESS_KEY;
-        awsApiRequest.secretKey = process.env.INPUT_AWS_SECRET_KEY;
-        awsApiRequest.region = process.env.INPUT_REGION;
-
-    } else { //Running as command line script
-        if (process.argv.length < 6) {
-            console.log('\nbeanstalk-deploy: Deploy a zip file to AWS Elastic Beanstalk');
-            console.log('https://github.com/einaregilsson/beanstalk-deploy\n');
-            console.log('Usage: beanstalk-deploy.js <application> <environment> <versionLabel> <region> [<filename>]\n');
-            console.log('Environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be defined for the program to work.')
-            console.log('If <filename> is skipped there will be no deployment, the script will simply log events from the environment.\n');
-            process.exit(1);
-        }
-
-        [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
-
-        awsApiRequest.accessKey = process.env.AWS_ACCESS_KEY_ID;
-        awsApiRequest.secretKey = process.env.AWS_SECRET_ACCESS_KEY;
-        awsApiRequest.region = region;
-    }
+//Uploads zip file, creates new version and deploys it
+function deployNewVersion(application, environmentName, versionLabel, file) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
 
-    if (!file && !IS_GITHUB_ACTION) { //when something fails during the monitoring, make it possible to just observe what's going on. Start 5 minutes ago...
-        let fiveMinutesAgo = new Date(new Date().getTime() - 5 * 60 * 1000);
-        waitForDeployment(application, environmentName, versionLabel, fiveMinutesAgo);
-        return;
-    }
-
     readFile(file).then(result => {
         fileBuffer = result;
-        return createStorageLocation(region);
+        return createStorageLocation();
     }).then(result => {
         expect(200, result );
         bucket = result.data.CreateStorageLocationResponse.CreateStorageLocationResult.S3Bucket;
@@ -193,6 +160,67 @@ function main() {
         console.error(`Deployment failed: ${err}`);
         process.exit(2);
     }); 
+}
+
+//Deploys existing version in EB
+function deployExistingVersion(application, environmentName, versionLabel) {
+    let deployStart = new Date();
+    console.log(`No filename give, deploying existing version ${versionLabel}`);
+
+    deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
+        expect(200, result);
+        console.log('Deployment started...\n');
+        return waitForDeployment(application, environmentName, versionLabel, deployStart);
+    }).then(envAfterDeployment => {
+        if (envAfterDeployment.Health === 'Green') {
+            console.log('Environment update successful!')
+            process.exit(0);
+        } else {
+            console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
+            process.exit(1);
+        }
+    }).catch(err => {
+        console.error(`Deployment failed: ${err}`);
+        process.exit(2);
+    }); 
+}
+
+function main() {
+
+    let application, environmentName, versionLabel, region, file;
+    if (IS_GITHUB_ACTION) { //Running in GitHub Actions
+        application = process.env.INPUT_APPLICATION_NAME;
+        environmentName = process.env.INPUT_ENVIRONMENT_NAME;
+        versionLabel = process.env.INPUT_VERSION_LABEL;
+        file = process.env.INPUT_DEPLOYMENT_PACKAGE;
+
+        awsApiRequest.accessKey = process.env.INPUT_AWS_ACCESS_KEY;
+        awsApiRequest.secretKey = process.env.INPUT_AWS_SECRET_KEY;
+        awsApiRequest.region = process.env.INPUT_REGION;
+
+    } else { //Running as command line script
+        if (process.argv.length < 6) {
+            console.log('\nbeanstalk-deploy: Deploy a zip file to AWS Elastic Beanstalk');
+            console.log('https://github.com/einaregilsson/beanstalk-deploy\n');
+            console.log('Usage: beanstalk-deploy.js <application> <environment> <versionLabel> <region> [<filename>]\n');
+            console.log('Environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be defined for the program to work.')
+            console.log('If <filename> is skipped the script will attempt to deploy an existing version named <versionLabel>.\n');
+            process.exit(1);
+        }
+
+        [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
+
+        awsApiRequest.accessKey = process.env.AWS_ACCESS_KEY_ID;
+        awsApiRequest.secretKey = process.env.AWS_SECRET_ACCESS_KEY;
+        awsApiRequest.region = region;
+    }
+
+    if (file) {
+        deployNewVersion(application, environmentName, versionLabel, file);
+    } else { 
+        deployExistingVersion(application, environmentName, versionLabel);
+    }
+
 }
 
 //Wait until the new version is deployed, printing any events happening during the wait...
