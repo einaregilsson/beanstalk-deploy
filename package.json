@@ -1,0 +1,24 @@
+{
+  "name": "beanstalk-deploy",
+  "version": "1.0.0",
+  "description": "GitHub Action + command line tool to deploy to AWS Elastic Beanstalk.",
+  "main": "beanstalk-deploy.js",
+  "repository": {
+    "type": "git",
+    "url": "git+https://github.com/einaregilsson/beanstalk-deploy.git"
+  },
+  "bin" : { "beanstalk-deploy" : "./beanstalk-deploy.js" },
+  "keywords": [
+    "AWS",
+    "github-actions",
+    "github actions",
+    "elastic beanstalk",
+    "deploy"
+  ],
+  "author": "Einar Egilsson",
+  "license": "MIT",
+  "bugs": {
+    "url": "https://github.com/einaregilsson/beanstalk-deploy/issues"
+  },
+  "homepage": "https://github.com/einaregilsson/beanstalk-deploy#readme"
+}
