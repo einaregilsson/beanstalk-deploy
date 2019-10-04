@@ -26,3 +26,6 @@ inputs:
   deployment_package:
     description: 'Zip file with the version to deploy. If skipped the action will deploy existing version.'
     required: false
+branding:
+  icon: 'arrow-up'  
+  color: 'green'
