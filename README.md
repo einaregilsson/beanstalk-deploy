@@ -78,6 +78,10 @@ beanstalk-deploy.js MyApplicationName MyApplication-Environment 12345 us-west-2 
 Just like in the GitHub action you can skip the final file parameter and the program will attempt to deploy an existing
 version instead.
 
+The program is available as an [NPM Package](https://www.npmjs.com/package/beanstalk-deploy) so you can install it with
+```npm install -g beanstalk-deploy``` and then you'll have the ```beanstalk-deploy``` command (without .js) available
+everywhere. 
+
 ## Caveats
 
 1. The S3 upload is a simple PUT request, we don't handle chunked upload. It has worked fine for files that are a 
