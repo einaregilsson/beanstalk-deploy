@@ -3,11 +3,14 @@
   "version": "1.0.0",
   "description": "GitHub Action + command line tool to deploy to AWS Elastic Beanstalk.",
   "main": "beanstalk-deploy.js",
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin" : { "beanstalk-deploy" : "./beanstalk-deploy.js"},
   "repository": {
     "type": "git",
     "url": "git+https://github.com/einaregilsson/beanstalk-deploy.git"
   },
-  "bin" : { "beanstalk-deploy" : "./beanstalk-deploy.js" },
   "keywords": [
     "AWS",
     "github-actions",
