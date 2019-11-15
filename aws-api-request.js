@@ -7,7 +7,7 @@ function awsApiRequest(options) {
         let region = options.region || awsApiRequest.region || process.env.AWS_DEFAULT_REGION,
             service = options.service,
             accessKey = options.accessKey || awsApiRequest.accessKey || process.env.AWS_ACCESS_KEY_ID,
-            secretKey = options.secretKey || awsApiRequest.secretKey || process.env.AWS_SECRET_SECRET_KEY,
+            secretKey = options.secretKey || awsApiRequest.secretKey || process.env.AWS_SECRET_ACCESS_KEY,
             method = options.method || 'GET',
             path = options.path || '/',
             querystring = options.querystring || {},
