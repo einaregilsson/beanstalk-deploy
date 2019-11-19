@@ -228,6 +228,9 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
     let counter = 0;
     let degraded = false;
     let healThreshold;
+    let deploymentFailed = false;
+
+
     return new Promise((resolve, reject) => {
         function update() {
             describeEvents(application, environmentName, start).then(result => {
@@ -236,6 +239,9 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                 for (let ev of events) {
                     let date = new Date(ev.EventDate * 1000); //Seconds to milliseconds,
                     console.log(`${date.toISOString().substr(11,8)} ${ev.Severity}: ${ev.Message}`);
+                    if (ev.Message.match(/Failed to deploy application/)) {
+                        deploymentFailed = true; //wait until next iteration to finish, to get the final messages...
+                    }
                 }
                 if (events.length > 0) {
                     start = new Date(events[events.length-1].EventDate * 1000 + 1000); //Add extra second so we don't get the same message next time...
@@ -273,8 +279,12 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                             }
                         }
                     }
+                } else if (deploymentFailed) {
+                    let msg = `Deployment failed! Current State: Version: ${env.VersionLabel}, Health: ${env.Health}, Health Status: ${env.HealthStatus}`;
+                    console.log(`${new Date().toISOString().substr(11,8)} ERROR: ${msg}`);
+                    reject(new Error(msg));
                 } else {
-                    if (counter % 6 === 0) {
+                    if (counter % 6 === 0 && !deploymentFailed) {
                         console.log(`${new Date().toISOString().substr(11,8)} INFO: Still updating, status is "${env.Status}", health is "${env.Health}", health status is "${env.HealthStatus}"`);
                     }
                     setTimeout(update, 5000);
