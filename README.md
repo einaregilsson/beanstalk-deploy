@@ -23,13 +23,13 @@ jobs:
     steps:
     
     - name: Checkout source code
-    - uses: actions/checkout@v1
+      uses: actions/checkout@v1
 
     - name: Generate deployment package
       run: zip deploy.zip *.js *.json *.html *.css
       
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v1
+      uses: einaregilsson/beanstalk-deploy@v3
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
