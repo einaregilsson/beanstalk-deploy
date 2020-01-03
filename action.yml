@@ -11,7 +11,7 @@ inputs:
   aws_secret_key:
     description: 'AWS Secret Key'
     required: true
-  aws_region:
+  region:
     description: 'AWS Region'
     required: true
   application_name:
