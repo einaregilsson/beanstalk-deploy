@@ -57,6 +57,7 @@ function createBeanstalkVersion(application, bucket, s3Key, versionLabel) {
             Version: '2010-12-01',
             ApplicationName : application,
             VersionLabel : versionLabel,
+            Description : versionDescription,
             'SourceBundle.S3Bucket' : bucket,
             'SourceBundle.S3Key' : s3Key.substr(1) //Don't want leading / here
         }
@@ -113,7 +114,7 @@ function expect(status, result) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, file) {
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
@@ -135,7 +136,7 @@ function deployNewVersion(application, environmentName, versionLabel, file) {
     }).then(result => {
         expect(200, result);
         console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
-        return createBeanstalkVersion(application, bucket, s3Key, versionLabel);
+        return createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription);
     }).then(result => {
         expect(200, result);
         console.log(`Created new application version ${versionLabel} in Beanstalk.`);
@@ -192,6 +193,7 @@ function main() {
         application = process.env.INPUT_APPLICATION_NAME;
         environmentName = process.env.INPUT_ENVIRONMENT_NAME;
         versionLabel = process.env.INPUT_VERSION_LABEL;
+        versionDescription = process.env.INPUT_VERSION_DESCRIPTION;
         file = process.env.INPUT_DEPLOYMENT_PACKAGE;
 
         awsApiRequest.accessKey = process.env.INPUT_AWS_ACCESS_KEY;
@@ -202,13 +204,13 @@ function main() {
         if (process.argv.length < 6) {
             console.log('\nbeanstalk-deploy: Deploy a zip file to AWS Elastic Beanstalk');
             console.log('https://github.com/einaregilsson/beanstalk-deploy\n');
-            console.log('Usage: beanstalk-deploy.js <application> <environment> <versionLabel> <region> [<filename>]\n');
+            console.log('Usage: beanstalk-deploy.js <application> <environment> <versionLabel> <versionDescription> <region> [<filename>]\n');
             console.log('Environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be defined for the program to work.')
             console.log('If <filename> is skipped the script will attempt to deploy an existing version named <versionLabel>.\n');
             process.exit(1);
         }
 
-        [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
+        [application, environmentName, versionLabel, versionDescription, region, file] = process.argv.slice(2);
 
         awsApiRequest.accessKey = process.env.AWS_ACCESS_KEY_ID;
         awsApiRequest.secretKey = process.env.AWS_SECRET_ACCESS_KEY;
@@ -216,7 +218,7 @@ function main() {
     }
 
     if (file) {
-        deployNewVersion(application, environmentName, versionLabel, file);
+        deployNewVersion(application, environmentName, versionLabel, versionDescription, file);
     } else { 
         deployExistingVersion(application, environmentName, versionLabel);
     }

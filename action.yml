@@ -23,6 +23,9 @@ inputs:
   version_label:
     description: 'Version label for new Beanstalk version'
     required: true
+  version_description:
+    description: 'Version description for new Beanstalk version'
+    required: true
   deployment_package:
     description: 'Zip file with the version to deploy. If skipped the action will deploy existing version.'
     required: false
