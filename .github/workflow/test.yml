@@ -1,0 +1,13 @@
+name: test github workflow
+on: [push]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    steps:
+    - name: checkout source code
+      uses: actions/checkout@v1
+    - name: test
+      run: echo 'hello'          
+      
+
