@@ -102,6 +102,18 @@ function describeEnvironments(application, environmentName) {
     });
 }
 
+function getApplicationVersion(application, versionLabel) {
+    return awsApiRequest({
+        service: 'elasticbeanstalk',
+        querystring: {
+            Operation: 'DescribeApplicationVersions', 
+            Version: '2010-12-01',
+            ApplicationName : application,
+            'VersionLabels.members.1' : versionLabel //Yes, that's the horrible way to pass an array...
+        }
+    });
+}
+
 function expect(status, result) {
     if (status !== result.statusCode) { 
         if (result.headers['content-type'] !== 'application/json') {
@@ -165,7 +177,7 @@ function deployNewVersion(application, environmentName, versionLabel, file) {
 //Deploys existing version in EB
 function deployExistingVersion(application, environmentName, versionLabel) {
     let deployStart = new Date();
-    console.log(`No filename give, deploying existing version ${versionLabel}`);
+    console.log(`Deploying existing version ${versionLabel}`);
 
     deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
         expect(200, result);
@@ -187,7 +199,7 @@ function deployExistingVersion(application, environmentName, versionLabel) {
 
 function main() {
 
-    let application, environmentName, versionLabel, region, file;
+    let application, environmentName, versionLabel, region, file, useExistingVersionIfAvailable;
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = process.env.INPUT_APPLICATION_NAME;
         environmentName = process.env.INPUT_ENVIRONMENT_NAME;
@@ -197,6 +209,7 @@ function main() {
         awsApiRequest.accessKey = process.env.INPUT_AWS_ACCESS_KEY;
         awsApiRequest.secretKey = process.env.INPUT_AWS_SECRET_KEY;
         awsApiRequest.region = process.env.INPUT_REGION;
+        useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
 
     } else { //Running as command line script
         if (process.argv.length < 6) {
@@ -209,18 +222,51 @@ function main() {
         }
 
         [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
+        useExistingVersionIfAvailable = false; //This option is not available in the console version
 
         awsApiRequest.accessKey = process.env.AWS_ACCESS_KEY_ID;
         awsApiRequest.secretKey = process.env.AWS_SECRET_ACCESS_KEY;
         awsApiRequest.region = region;
     }
 
-    if (file) {
-        deployNewVersion(application, environmentName, versionLabel, file);
-    } else { 
-        deployExistingVersion(application, environmentName, versionLabel);
+    console.log('Beanstalk-Deploy: GitHub Action for deploying to Elastic Beanstalk.');
+    console.log('https://github.com/einaregilsson/beanstalk-deploy');
+    console.log('');
+
+    if (!awsApiRequest.region) {
+        console.error('Deployment failed: Region not specified!');
+        process.exit(2);
     }
 
+    getApplicationVersion(application, versionLabel).then(result => {
+
+        let versionsList = result.data.DescribeApplicationVersionsResponse.DescribeApplicationVersionsResult.ApplicationVersions;
+        let versionAlreadyExists = versionsList.length === 1;
+        
+        if (versionAlreadyExists) {
+            if (file && !useExistingVersionIfAvailable) {
+                console.error(`Deployment failed: Version ${versionLabel} already exists. Either remove the "deployment_package" parameter to deploy existing version, or set the "use_existing_version_if_available" parameter to "true" to use existing version if it exists and deployment package if it doesn't.`);
+                process.exit(2);
+            } else {
+                if (file && useExistingVersionIfAvailable) {
+                    console.log(`Ignoring deployment package ${file} since version ${versionLabel} already exists and "use_existing_version_if_available" is set to true.`);
+                }
+                console.log(`Deploying existing version ${versionLabel}, version info:`);
+                console.log(JSON.stringify(versionsList[0], null, 2));
+                deployExistingVersion(application, environmentName, versionLabel);
+            } 
+        } else {
+            if (file) {
+                deployNewVersion(application, environmentName, versionLabel, file);
+            } else {
+                console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
+                process.exit(2);
+            } 
+        } 
+    }).catch(err => {
+        console.error(`Deployment failed: ${err}`);
+        process.exit(2);
+    });
 }
 
 //Wait until the new version is deployed, printing any events happening during the wait...

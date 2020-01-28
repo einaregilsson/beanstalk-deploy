@@ -26,6 +26,9 @@ inputs:
   deployment_package:
     description: 'Zip file with the version to deploy. If skipped the action will deploy existing version.'
     required: false
+  use_existing_version_if_available:
+    description: 'If set to "true" then the action will deploy an existing version with the given version_label if it already exists, but otherwise create the version and deploy it.'
+    required: false
 branding:
   icon: 'arrow-up'  
   color: 'green'
