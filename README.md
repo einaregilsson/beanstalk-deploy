@@ -29,7 +29,7 @@ jobs:
       run: zip deploy.zip *.js *.json *.html *.css
       
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v4
+      uses: einaregilsson/beanstalk-deploy@v5
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -48,7 +48,7 @@ attempt to deploy that. In the example below the action would attempt do deploy 
 
 ```
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v4
+      uses: einaregilsson/beanstalk-deploy@v5
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
