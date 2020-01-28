@@ -58,6 +58,13 @@ attempt to deploy that. In the example below the action would attempt do deploy 
         region: us-west-2
 ```
 
+There is also one extra parameter you can use, `use_existing_version_if_available`. This can be set to `true` and then
+the program will deploy a version already in Elastic Beanstalk if it exists, but if it doesn't exist it will create it
+from the deployment package you specify. This can be useful when deploying to multiple environments, based on commit message.
+See issue https://github.com/einaregilsson/beanstalk-deploy/issues/8 for example. This parameter is new in version 5, and is optional,
+if you omit it the program will simply behave exactly as it did before, by looking at the existence of `deployment_package` to decide
+whether to create a version or not.
+
 ### Failure modes
 If you're uploading a new version the action will fail if that file already exists in S3, if the application version
 exists in Beanstalk and of course if the deployment fails. The action will wait until Beanstalk reports that the
