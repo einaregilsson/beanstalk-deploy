@@ -162,7 +162,7 @@ function deployNewVersion(application, environmentName, versionLabel, file) {
 
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
-            console.log('Environment update successful!')
+            console.log('Environment update successful!');
             process.exit(0);
         } else {
             console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
@@ -185,7 +185,7 @@ function deployExistingVersion(application, environmentName, versionLabel) {
         return waitForDeployment(application, environmentName, versionLabel, deployStart);
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
-            console.log('Environment update successful!')
+            console.log('Environment update successful!');
             process.exit(0);
         } else {
             console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
@@ -216,7 +216,7 @@ function main() {
             console.log('\nbeanstalk-deploy: Deploy a zip file to AWS Elastic Beanstalk');
             console.log('https://github.com/einaregilsson/beanstalk-deploy\n');
             console.log('Usage: beanstalk-deploy.js <application> <environment> <versionLabel> <region> [<filename>]\n');
-            console.log('Environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be defined for the program to work.')
+            console.log('Environment variables AWS_ACCESS_KEY_ID and AWS_SECRET_ACCESS_KEY must be defined for the program to work.');
             console.log('If <filename> is skipped the script will attempt to deploy an existing version named <versionLabel>.\n');
             process.exit(1);
         }
@@ -336,7 +336,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                     setTimeout(update, 5000);
                 }
             }).catch(reject);
-        };
+        }
     
         update();
     });
