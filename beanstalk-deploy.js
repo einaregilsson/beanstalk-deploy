@@ -276,9 +276,24 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
     let healThreshold;
     let deploymentFailed = false;
 
+    const SECOND = 1000;
+    const MINUTE = 60 * SECOND;
+
+    let waitPeriod = 10 * SECOND; //Start at ten seconds, increase slowly, long deployments have been erroring with too many requests.
+    let waitStart = new Date().getTime();
 
     return new Promise((resolve, reject) => {
         function update() {
+
+            let elapsed = new Date().getTime() - waitStart;
+            
+            //Limit update requests for really long deploys
+            if (elapsed > (10 * MINUTE)) {
+                waitPeriod = 30 * SECOND;
+            } else if (elapsed > 5 * MINUTE) {
+                waitPeriod = 20 * SECOND;
+            }
+
             describeEvents(application, environmentName, start).then(result => {
                 expect(200, result);
                 let events = result.data.DescribeEventsResponse.DescribeEventsResult.Events.reverse(); //They show up in desc, we want asc for logging...
@@ -308,8 +323,8 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                         } else {
                             console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it 30 seconds to recover...`);
                             degraded = true;
-                            healThreshold = new Date(new Date().getTime() + 30 * 1000);
-                            setTimeout(update, 5000);
+                            healThreshold = new Date(new Date().getTime() + 30 * SECOND);
+                            setTimeout(update, waitPeriod);
                         }
                     } else {
                         if (env.Health === 'Green') {
@@ -321,7 +336,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                             } else {
                                 let left = Math.floor((healThreshold.getTime() - new Date().getTime()) / 1000);
                                 console.warn(`Environment still has health: ${env.Health} and health status ${env.HealthStatus}. Waiting ${left} more seconds before failing...`);
-                                setTimeout(update, 5000);
+                                setTimeout(update, waitPeriod);
                             }
                         }
                     }
@@ -333,7 +348,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                     if (counter % 6 === 0 && !deploymentFailed) {
                         console.log(`${new Date().toISOString().substr(11,8)} INFO: Still updating, status is "${env.Status}", health is "${env.Health}", health status is "${env.HealthStatus}"`);
                     }
-                    setTimeout(update, 5000);
+                    setTimeout(update, waitPeriod);
                 }
             }).catch(reject);
         }
