@@ -240,6 +240,10 @@ function main() {
 
     getApplicationVersion(application, versionLabel).then(result => {
 
+        console.log('**** Got result for getApplicationVersion, application is ' + application + ', versionLabel is ' + versionLabel);
+
+        console.log('**** FULL RESPONSE WAS ' + JSON.stringify(result));
+
         let versionsList = result.data.DescribeApplicationVersionsResponse.DescribeApplicationVersionsResult.ApplicationVersions;
         let versionAlreadyExists = versionsList.length === 1;
         
