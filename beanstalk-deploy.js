@@ -275,6 +275,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
     let degraded = false;
     let healThreshold;
     let deploymentFailed = false;
+    let deployWaitingTime = ParseInt(Process.env.INPUT_MAX_WAITING_DEPLOY_TIME || 30);
 
     const SECOND = 1000;
     const MINUTE = 60 * SECOND;
@@ -323,7 +324,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                         } else {
                             console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it 30 seconds to recover...`);
                             degraded = true;
-                            healThreshold = new Date(new Date().getTime() + 30 * SECOND);
+                            healThreshold = new Date(new Date().getTime() + deployWaitingTime * SECOND);
                             setTimeout(update, waitPeriod);
                         }
                     } else {

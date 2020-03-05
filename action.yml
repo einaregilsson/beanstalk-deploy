@@ -29,6 +29,9 @@ inputs:
   use_existing_version_if_available:
     description: 'If set to "true" then the action will deploy an existing version with the given version_label if it already exists, but otherwise create the version and deploy it.'
     required: false
+  max_waiting_deploy_time:
+    description: 'If you want to change retry timeout when waiting environment to Green, Default value is 30 seconds'
+    required: false
 branding:
   icon: 'arrow-up'  
   color: 'green'
