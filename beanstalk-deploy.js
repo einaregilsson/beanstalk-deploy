@@ -275,7 +275,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
     let degraded = false;
     let healThreshold;
     let deploymentFailed = false;
-    let deployWaitingTime = ParseInt(Process.env.INPUT_MAX_WAITING_DEPLOY_TIME || 30);
+    let deployWaitingTime = parseInt(Process.env.INPUT_MAX_WAITING_DEPLOY_TIME || 30);
 
     const SECOND = 1000;
     const MINUTE = 60 * SECOND;
