@@ -114,8 +114,11 @@ function getApplicationVersion(application, versionLabel) {
     });
 }
 
-function expect(status, result) {
+function expect(status, result, extraErrorMessage) {
     if (status !== result.statusCode) { 
+        if (extraErrorMessage) {
+            console.log(extraErrorMessage);
+        }
         if (result.headers['content-type'] !== 'application/json') {
             throw new Error(`Status: ${result.statusCode}. Message: ${result.data}`);
         } else {
@@ -237,12 +240,28 @@ function main() {
         console.error('Deployment failed: Region not specified!');
         process.exit(2);
     }
+    if (!awsApiRequest.accessKey) {
+        console.error('Deployment failed: AWS Access Key not specified!');
+        process.exit(2);
+    }
+    if (!awsApiRequest.secretKey) {
+        console.error('Deployment failed: AWS Secret Key not specified!');
+        process.exit(2);
+    }
+
+
+    console.log(' ***** Input parameters were: ***** ');
+    console.log('    Application: ' + application);
+    console.log('    Environment: ' + environmentName);
+    console.log('  Version Label: ' + versionLabel);
+    console.log('     AWS Region: ' + awsApiRequest.region);
+    console.log('           File: ' + file);
+    console.log(' AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
+    console.log(' AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
 
     getApplicationVersion(application, versionLabel).then(result => {
 
-        console.log('**** Got result for getApplicationVersion, application is ' + application + ', versionLabel is ' + versionLabel);
-
-        console.log('**** FULL RESPONSE WAS ' + JSON.stringify(result));
+        expect(200, result);
 
         let versionsList = result.data.DescribeApplicationVersionsResponse.DescribeApplicationVersionsResult.ApplicationVersions;
         let versionAlreadyExists = versionsList.length === 1;
@@ -273,6 +292,14 @@ function main() {
     });
 }
 
+function formatTimespan(since) {
+    let elapsed = new Date().getTime() - since;
+    let seconds = Math.floor(elapsed / 1000);
+    let minutes = Math.floor(seconds / 60);
+    seconds -= (minutes * 60);
+    return `${minutes}m${seconds}s`;
+}
+
 //Wait until the new version is deployed, printing any events happening during the wait...
 function waitForDeployment(application, environmentName, versionLabel, start) {
     let counter = 0;
@@ -285,6 +312,8 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
 
     let waitPeriod = 10 * SECOND; //Start at ten seconds, increase slowly, long deployments have been erroring with too many requests.
     let waitStart = new Date().getTime();
+
+    let eventCalls = 0, environmentCalls = 0; // Getting throttled on these print out how many we're doing...
 
     return new Promise((resolve, reject) => {
         function update() {
@@ -299,7 +328,9 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
             }
 
             describeEvents(application, environmentName, start).then(result => {
-                expect(200, result);
+                eventCalls++;
+
+                expect(200, result, `Failed in call to describeEvents, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
                 let events = result.data.DescribeEventsResponse.DescribeEventsResult.Events.reverse(); //They show up in desc, we want asc for logging...
                 for (let ev of events) {
                     let date = new Date(ev.EventDate * 1000); //Seconds to milliseconds,
@@ -314,7 +345,8 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
             }).catch(reject);
     
             describeEnvironments(application, environmentName).then(result => {
-                expect(200, result);
+                environmentCalls++;
+                expect(200, result, `Failed in call to describeEnvironments, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
                 counter++;
                 let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
                 if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
