@@ -315,6 +315,8 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
 
     let eventCalls = 0, environmentCalls = 0; // Getting throttled on these print out how many we're doing...
 
+    let consecutiveThrottleErrors = 0;
+
     return new Promise((resolve, reject) => {
         function update() {
 
@@ -329,6 +331,16 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
 
             describeEvents(application, environmentName, start).then(result => {
                 eventCalls++;
+
+                
+                //Allow a few throttling failures...
+                if (result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code == 'Throttling') {
+                    consecutiveThrottleErrors++;
+                    console.warn(`Request to DescribeEvents was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
+                    return;
+                }
+
+                consecutiveThrottleErrors = 0; //Reset the throttling count
 
                 expect(200, result, `Failed in call to describeEvents, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
                 let events = result.data.DescribeEventsResponse.DescribeEventsResult.Events.reverse(); //They show up in desc, we want asc for logging...
@@ -346,7 +358,22 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
     
             describeEnvironments(application, environmentName).then(result => {
                 environmentCalls++;
+
+                //Allow a few throttling failures...
+                if (result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code == 'Throttling') {
+                    consecutiveThrottleErrors++;
+                    console.warn(`Request to DescribeEnvironments was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
+                    if (consecutiveThrottleErrors >= 5) {
+                        throw new Error(`Deployment failed, got ${consecutiveThrottleErrors} throttling errors in a row while waiting for deployment`);
+                    }
+
+                    setTimeout(update, waitPeriod);
+                    return;
+                }
+
                 expect(200, result, `Failed in call to describeEnvironments, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
+
+                consecutiveThrottleErrors = 0;
                 counter++;
                 let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
                 if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
