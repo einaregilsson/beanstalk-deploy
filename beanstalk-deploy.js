@@ -261,14 +261,14 @@ function main() {
 
 
     console.log(' ***** Input parameters were: ***** ');
-    console.log('    Application: ' + application);
-    console.log('    Environment: ' + environmentName);
-    console.log('  Version Label: ' + versionLabel);
-    console.log('     AWS Region: ' + awsApiRequest.region);
-    console.log('           File: ' + file);
-    console.log(' AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
-    console.log(' AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
-
+    console.log('        Application: ' + application);
+    console.log('        Environment: ' + environmentName);
+    console.log('      Version Label: ' + versionLabel);
+    console.log('         AWS Region: ' + awsApiRequest.region);
+    console.log('               File: ' + file);
+    console.log('     AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
+    console.log('     AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
+    console.log(' Recovery wait time: ' + waitForRecoverySeconds);
     getApplicationVersion(application, versionLabel).then(result => {
 
         expect(200, result);
