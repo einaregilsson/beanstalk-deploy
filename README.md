@@ -29,7 +29,7 @@ jobs:
       run: zip deploy.zip *.js *.json *.html *.css
       
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v7
+      uses: einaregilsson/beanstalk-deploy@v8
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -48,7 +48,7 @@ attempt to deploy that. In the example below the action would attempt do deploy 
 
 ```
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v7
+      uses: einaregilsson/beanstalk-deploy@v8
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -58,12 +58,20 @@ attempt to deploy that. In the example below the action would attempt do deploy 
         region: us-west-2
 ```
 
-There is also one extra parameter you can use, `use_existing_version_if_available`. This can be set to `true` and then
+
+### Optional parameters
+
+`use_existing_version_if_available`: This can be set to `true` and then
 the program will deploy a version already in Elastic Beanstalk if it exists, but if it doesn't exist it will create it
 from the deployment package you specify. This can be useful when deploying to multiple environments, based on commit message.
 See issue https://github.com/einaregilsson/beanstalk-deploy/issues/8 for example. This parameter is new in version 5, and is optional,
 if you omit it the program will simply behave exactly as it did before, by looking at the existence of `deployment_package` to decide
 whether to create a version or not.
+
+`wait_for_environment_recovery`: The environment sometimes takes a while to return to Green status after the deployment
+is finished. By default we wait 30 seconds after deployment before determining whether the environment is OK or not. You can
+increase this timeout by putting here the number of seconds to wait. Especially smaller environments with less resources
+might take a while to return to normal. Thanks to GitHub user [mantaroh](https://github.com/mantaroh) for this one.
 
 ### Failure modes
 If you're uploading a new version the action will fail if that file already exists in S3, if the application version

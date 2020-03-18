@@ -128,7 +128,7 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, file) {
+function deployNewVersion(application, environmentName, versionLabel, file, waitForRecoverySeconds) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
@@ -156,12 +156,12 @@ function deployNewVersion(application, environmentName, versionLabel, file) {
         console.log(`Created new application version ${versionLabel} in Beanstalk.`);
         deployStart = new Date();
         console.log(`Starting deployment of version ${versionLabel} to environment ${environmentName}`);
-        return deployBeanstalkVersion(application, environmentName, versionLabel);
+        return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
     }).then(result => {
         expect(200, result);
         console.log('Deployment started...\n');
 
-        return waitForDeployment(application, environmentName, versionLabel, deployStart);
+        return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
 
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
@@ -178,14 +178,14 @@ function deployNewVersion(application, environmentName, versionLabel, file) {
 }
 
 //Deploys existing version in EB
-function deployExistingVersion(application, environmentName, versionLabel) {
+function deployExistingVersion(application, environmentName, versionLabel, waitForRecoverySeconds) {
     let deployStart = new Date();
     console.log(`Deploying existing version ${versionLabel}`);
 
     deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
         expect(200, result);
         console.log('Deployment started...\n');
-        return waitForDeployment(application, environmentName, versionLabel, deployStart);
+        return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
             console.log('Environment update successful!');
@@ -200,18 +200,28 @@ function deployExistingVersion(application, environmentName, versionLabel) {
     }); 
 }
 
+
+function strip(val) {
+    //Strip leadig or trailing whitespace
+    return (val || '').replace(/^\s*|\s*$/g, '');
+}
+
 function main() {
 
-    let application, environmentName, versionLabel, region, file, useExistingVersionIfAvailable;
+    let application, environmentName, versionLabel, region, file, useExistingVersionIfAvailable, waitForRecoverySeconds = 30;
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
-        application = process.env.INPUT_APPLICATION_NAME;
-        environmentName = process.env.INPUT_ENVIRONMENT_NAME;
-        versionLabel = process.env.INPUT_VERSION_LABEL;
-        file = process.env.INPUT_DEPLOYMENT_PACKAGE;
+        application = strip(process.env.INPUT_APPLICATION_NAME);
+        environmentName = strip(process.env.INPUT_ENVIRONMENT_NAME);
+        versionLabel = strip(process.env.INPUT_VERSION_LABEL);
+        file = strip(process.env.INPUT_DEPLOYMENT_PACKAGE);
 
-        awsApiRequest.accessKey = process.env.INPUT_AWS_ACCESS_KEY;
-        awsApiRequest.secretKey = process.env.INPUT_AWS_SECRET_KEY;
-        awsApiRequest.region = process.env.INPUT_REGION;
+        awsApiRequest.accessKey = strip(process.env.INPUT_AWS_ACCESS_KEY);
+        awsApiRequest.secretKey = strip(process.env.INPUT_AWS_SECRET_KEY);
+        awsApiRequest.region = strip(process.env.INPUT_REGION);
+
+        if (process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY) {
+            waitForRecoverySeconds = parseInt(process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY);
+        }
         useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
 
     } else { //Running as command line script
@@ -227,9 +237,9 @@ function main() {
         [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
         useExistingVersionIfAvailable = false; //This option is not available in the console version
 
-        awsApiRequest.accessKey = process.env.AWS_ACCESS_KEY_ID;
-        awsApiRequest.secretKey = process.env.AWS_SECRET_ACCESS_KEY;
-        awsApiRequest.region = region;
+        awsApiRequest.accessKey = strip(process.env.AWS_ACCESS_KEY_ID);
+        awsApiRequest.secretKey = strip(process.env.AWS_SECRET_ACCESS_KEY);
+        awsApiRequest.region = strip(region);
     }
 
     console.log('Beanstalk-Deploy: GitHub Action for deploying to Elastic Beanstalk.');
@@ -276,11 +286,11 @@ function main() {
                 }
                 console.log(`Deploying existing version ${versionLabel}, version info:`);
                 console.log(JSON.stringify(versionsList[0], null, 2));
-                deployExistingVersion(application, environmentName, versionLabel);
+                deployExistingVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, file);
+                deployNewVersion(application, environmentName, versionLabel, file, waitForRecoverySeconds);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
@@ -301,7 +311,7 @@ function formatTimespan(since) {
 }
 
 //Wait until the new version is deployed, printing any events happening during the wait...
-function waitForDeployment(application, environmentName, versionLabel, start) {
+function waitForDeployment(application, environmentName, versionLabel, start, waitForRecoverySeconds) {
     let counter = 0;
     let degraded = false;
     let healThreshold;
@@ -336,7 +346,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                 //Allow a few throttling failures...
                 if (result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code == 'Throttling') {
                     consecutiveThrottleErrors++;
-                    console.warn(`Request to DescribeEvents was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
+                    console.log(`Request to DescribeEvents was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
                     return;
                 }
 
@@ -362,7 +372,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                 //Allow a few throttling failures...
                 if (result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code == 'Throttling') {
                     consecutiveThrottleErrors++;
-                    console.warn(`Request to DescribeEnvironments was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
+                    console.log(`Request to DescribeEnvironments was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
                     if (consecutiveThrottleErrors >= 5) {
                         throw new Error(`Deployment failed, got ${consecutiveThrottleErrors} throttling errors in a row while waiting for deployment`);
                     }
@@ -384,9 +394,9 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                         if (env.Health === 'Green') {
                             resolve(env);   
                         } else {
-                            console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it 30 seconds to recover...`);
+                            console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it ${waitForRecoverySeconds} seconds to recover...`);
                             degraded = true;
-                            healThreshold = new Date(new Date().getTime() + 30 * SECOND);
+                            healThreshold = new Date(new Date().getTime() + waitForRecoverySeconds * SECOND);
                             setTimeout(update, waitPeriod);
                         }
                     } else {
@@ -395,7 +405,7 @@ function waitForDeployment(application, environmentName, versionLabel, start) {
                             resolve(env);
                         } else {
                             if (new Date().getTime() > healThreshold.getTime()) {
-                                reject(new Error(`Environment still has health ${env.Health} 30 seconds after update finished!`));
+                                reject(new Error(`Environment still has health ${env.Health} ${waitForRecoverySeconds} seconds after update finished!`));
                             } else {
                                 let left = Math.floor((healThreshold.getTime() - new Date().getTime()) / 1000);
                                 console.warn(`Environment still has health: ${env.Health} and health status ${env.HealthStatus}. Waiting ${left} more seconds before failing...`);
