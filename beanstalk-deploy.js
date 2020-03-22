@@ -165,7 +165,7 @@ function deployNewVersion(application, environmentName, versionLabel, file, wait
             return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
         } else {
             console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
-            console.log('Please verify manually that the deployment succeeds!');
+            console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
             process.exit(0);
         }
 
@@ -195,7 +195,7 @@ function deployExistingVersion(application, environmentName, versionLabel, waitU
             return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
         } else {
             console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
-            console.log('Please verify manually that the deployment succeeds!');
+            console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
             process.exit(0);
         }
     }).then(envAfterDeployment => {
@@ -294,6 +294,7 @@ function main() {
     console.log('      AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
     console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
     console.log('  Recovery wait time: ' + waitForRecoverySeconds);
+    console.log('');
 
     getApplicationVersion(application, versionLabel).then(result => {
 
