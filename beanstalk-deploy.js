@@ -128,7 +128,7 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, file, waitForRecoverySeconds) {
+function deployNewVersion(application, environmentName, versionLabel, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
@@ -159,9 +159,15 @@ function deployNewVersion(application, environmentName, versionLabel, file, wait
         return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
     }).then(result => {
         expect(200, result);
-        console.log('Deployment started...\n');
 
-        return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+        if (waitUntilDeploymentIsFinished) {
+            console.log('Deployment started, "wait_for_deployment" was true...\n');
+            return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+        } else {
+            console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
+            console.log('Please verify manually that the deployment succeeds!');
+            process.exit(0);
+        }
 
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
@@ -178,14 +184,20 @@ function deployNewVersion(application, environmentName, versionLabel, file, wait
 }
 
 //Deploys existing version in EB
-function deployExistingVersion(application, environmentName, versionLabel, waitForRecoverySeconds) {
+function deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
     let deployStart = new Date();
     console.log(`Deploying existing version ${versionLabel}`);
 
     deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
         expect(200, result);
-        console.log('Deployment started...\n');
-        return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+        if (waitUntilDeploymentIsFinished) {
+            console.log('Deployment started, "wait_for_deployment" was true...\n');
+            return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+        } else {
+            console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
+            console.log('Please verify manually that the deployment succeeds!');
+            process.exit(0);
+        }
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
             console.log('Environment update successful!');
@@ -208,7 +220,15 @@ function strip(val) {
 
 function main() {
 
-    let application, environmentName, versionLabel, region, file, useExistingVersionIfAvailable, waitForRecoverySeconds = 30;
+    let application, 
+        environmentName, 
+        versionLabel, 
+        region, 
+        file, 
+        useExistingVersionIfAvailable, 
+        waitForRecoverySeconds = 30, 
+        waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
+
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
         environmentName = strip(process.env.INPUT_ENVIRONMENT_NAME);
@@ -218,6 +238,10 @@ function main() {
         awsApiRequest.accessKey = strip(process.env.INPUT_AWS_ACCESS_KEY);
         awsApiRequest.secretKey = strip(process.env.INPUT_AWS_SECRET_KEY);
         awsApiRequest.region = strip(process.env.INPUT_REGION);
+
+        if ((process.env.INPUT_WAIT_FOR_DEPLOYMENT || '').toLowerCase() == 'false') {
+            waitUntilDeploymentIsFinished = false;
+        }
 
         if (process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY) {
             waitForRecoverySeconds = parseInt(process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY);
@@ -261,14 +285,16 @@ function main() {
 
 
     console.log(' ***** Input parameters were: ***** ');
-    console.log('        Application: ' + application);
-    console.log('        Environment: ' + environmentName);
-    console.log('      Version Label: ' + versionLabel);
-    console.log('         AWS Region: ' + awsApiRequest.region);
-    console.log('               File: ' + file);
-    console.log('     AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
-    console.log('     AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
-    console.log(' Recovery wait time: ' + waitForRecoverySeconds);
+    console.log('         Application: ' + application);
+    console.log('         Environment: ' + environmentName);
+    console.log('       Version Label: ' + versionLabel);
+    console.log('          AWS Region: ' + awsApiRequest.region);
+    console.log('                File: ' + file);
+    console.log('      AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
+    console.log('      AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
+    console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
+    console.log('  Recovery wait time: ' + waitForRecoverySeconds);
+
     getApplicationVersion(application, versionLabel).then(result => {
 
         expect(200, result);
@@ -286,11 +312,11 @@ function main() {
                 }
                 console.log(`Deploying existing version ${versionLabel}, version info:`);
                 console.log(JSON.stringify(versionsList[0], null, 2));
-                deployExistingVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
+                deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, file, waitForRecoverySeconds);
+                deployNewVersion(application, environmentName, versionLabel, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);

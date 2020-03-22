@@ -29,7 +29,7 @@ jobs:
       run: zip deploy.zip *.js *.json *.html *.css
       
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v8
+      uses: einaregilsson/beanstalk-deploy@v9
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -48,7 +48,7 @@ attempt to deploy that. In the example below the action would attempt do deploy 
 
 ```
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v8
+      uses: einaregilsson/beanstalk-deploy@v9
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -67,6 +67,10 @@ from the deployment package you specify. This can be useful when deploying to mu
 See issue https://github.com/einaregilsson/beanstalk-deploy/issues/8 for example. This parameter is new in version 5, and is optional,
 if you omit it the program will simply behave exactly as it did before, by looking at the existence of `deployment_package` to decide
 whether to create a version or not.
+
+`wait_for_deployment`: Whether the action should wait for the deployment to be complete in Elastic Beanstalk. Default is `true`.
+Deployments, especially immutable ones can take a long time to complete and eat up a lot of GitHub Actions minutes. So if you prefer
+to just start the deployment in Elastic Beanstalk and not wait for it to be completely finished then you can set this parameter to `false`.
 
 `wait_for_environment_recovery`: The environment sometimes takes a while to return to Green status after the deployment
 is finished. By default we wait 30 seconds after deployment before determining whether the environment is OK or not. You can
