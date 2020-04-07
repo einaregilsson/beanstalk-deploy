@@ -10,7 +10,7 @@ not handle rolling back the environment.
 
 The action expects you to have already generated a zip file with the version to be deployed. Example:
 
-```
+```yaml
 name: Deploy master
 on:
   push:
@@ -46,7 +46,7 @@ You can also use the action to deploy an existing version. To do this simply omi
 The action will then assume that the version you pass in throught ```version_label``` already exists in Beanstalk and
 attempt to deploy that. In the example below the action would attempt do deploy existing version 12345.
 
-```
+```yaml
     - name: Deploy to EB
       uses: einaregilsson/beanstalk-deploy@v9
       with:
