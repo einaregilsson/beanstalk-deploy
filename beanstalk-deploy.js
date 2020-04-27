@@ -49,7 +49,7 @@ function uploadFileToS3(bucket, s3Key, filebuffer) {
     });
 }
 
-function createBeanstalkVersion(application, bucket, s3Key, versionLabel) {
+function createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription) {
     return awsApiRequest({
         service: 'elasticbeanstalk',
         querystring: {
@@ -57,6 +57,7 @@ function createBeanstalkVersion(application, bucket, s3Key, versionLabel) {
             Version: '2010-12-01',
             ApplicationName : application,
             VersionLabel : versionLabel,
+            Description : versionDescription,
             'SourceBundle.S3Bucket' : bucket,
             'SourceBundle.S3Key' : s3Key.substr(1) //Don't want leading / here
         }
@@ -128,7 +129,7 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
@@ -150,10 +151,14 @@ function deployNewVersion(application, environmentName, versionLabel, file, wait
     }).then(result => {
         expect(200, result);
         console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
-        return createBeanstalkVersion(application, bucket, s3Key, versionLabel);
+        return createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription);
     }).then(result => {
         expect(200, result);
         console.log(`Created new application version ${versionLabel} in Beanstalk.`);
+        if (!environmentName) {
+            console.log('No environment name given, so exiting now without deploying the new version ${versionLabel} anywhere.');
+            process.exit(0);
+        }
         deployStart = new Date();
         console.log(`Starting deployment of version ${versionLabel} to environment ${environmentName}`);
         return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
@@ -222,7 +227,8 @@ function main() {
 
     let application, 
         environmentName, 
-        versionLabel, 
+        versionLabel,
+        versionDescription,
         region, 
         file, 
         useExistingVersionIfAvailable, 
@@ -233,6 +239,7 @@ function main() {
         application = strip(process.env.INPUT_APPLICATION_NAME);
         environmentName = strip(process.env.INPUT_ENVIRONMENT_NAME);
         versionLabel = strip(process.env.INPUT_VERSION_LABEL);
+        versionDescription = strip(process.env.INPUT_VERSION_DESCRIPTION);
         file = strip(process.env.INPUT_DEPLOYMENT_PACKAGE);
 
         awsApiRequest.accessKey = strip(process.env.INPUT_AWS_ACCESS_KEY);
@@ -259,6 +266,7 @@ function main() {
         }
 
         [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
+        versionDescription = ''; //Not available for this.
         useExistingVersionIfAvailable = false; //This option is not available in the console version
 
         awsApiRequest.accessKey = strip(process.env.AWS_ACCESS_KEY_ID);
@@ -288,6 +296,7 @@ function main() {
     console.log('         Application: ' + application);
     console.log('         Environment: ' + environmentName);
     console.log('       Version Label: ' + versionLabel);
+    console.log(' Version description: ' + versionDescription);
     console.log('          AWS Region: ' + awsApiRequest.region);
     console.log('                File: ' + file);
     console.log('      AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
@@ -302,9 +311,13 @@ function main() {
 
         let versionsList = result.data.DescribeApplicationVersionsResponse.DescribeApplicationVersionsResult.ApplicationVersions;
         let versionAlreadyExists = versionsList.length === 1;
-        
+
         if (versionAlreadyExists) {
-            if (file && !useExistingVersionIfAvailable) {
+
+            if (!environmentName) {
+                console.error(`You have no environment set, so we are trying to only create version ${versionLabel}, but it already exists in Beanstalk!`);
+                process.exit(2);
+            } else if (file && !useExistingVersionIfAvailable) {
                 console.error(`Deployment failed: Version ${versionLabel} already exists. Either remove the "deployment_package" parameter to deploy existing version, or set the "use_existing_version_if_available" parameter to "true" to use existing version if it exists and deployment package if it doesn't.`);
                 process.exit(2);
             } else {
@@ -317,7 +330,7 @@ function main() {
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);

@@ -18,11 +18,14 @@ inputs:
     description: 'Beanstalk application name'
     required: true
   environment_name:
-    description: 'Beanstalk environment name'
-    required: true
+    description: 'Beanstalk environment name. If empty a version will be created but not deployed anywhere.'
+    required: false
   version_label:
     description: 'Version label for new Beanstalk version'
     required: true
+  version_description:
+    description: 'Version description for the new Beanstalk version'
+    required: false
   deployment_package:
     description: 'Zip file with the version to deploy. If skipped the action will deploy existing version.'
     required: false
