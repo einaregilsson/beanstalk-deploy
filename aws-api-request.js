@@ -112,7 +112,7 @@ function createResult(data, res) {
 
 function request(method, path, headers, querystring, data, callback) {
     
-    let qs = Object.keys(querystring).map(k => `${k}=${querystring[k]}`).join('&');
+    let qs = Object.keys(querystring).map(k => `${k}=${encodeURIComponent(querystring[k])}`).join('&');
     path += '?' + qs;
     let hostname = headers.Host;
     delete headers.Host;
