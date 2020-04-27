@@ -29,7 +29,7 @@ jobs:
       run: zip deploy.zip *.js *.json *.html *.css
       
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v9
+      uses: einaregilsson/beanstalk-deploy@v10
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -48,7 +48,7 @@ attempt to deploy that. In the example below the action would attempt do deploy 
 
 ```yaml
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v9
+      uses: einaregilsson/beanstalk-deploy@v10
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -76,6 +76,12 @@ to just start the deployment in Elastic Beanstalk and not wait for it to be comp
 is finished. By default we wait 30 seconds after deployment before determining whether the environment is OK or not. You can
 increase this timeout by putting here the number of seconds to wait. Especially smaller environments with less resources
 might take a while to return to normal. Thanks to GitHub user [mantaroh](https://github.com/mantaroh) for this one.
+
+`version_description`: Description for the version you're creating. Can be useful for instance to set it to the commit that
+triggered the build, `version_description: ${{github.SHA}}`.
+
+`environment_name`: In version 10 this parameter becomes optional. If you don't pass an environment in the action will simply create
+the version but not deploy it anywhere.
 
 ### Failure modes
 If you're uploading a new version the action will fail if that file already exists in S3, if the application version
@@ -108,6 +114,3 @@ few megabytes in size, if your files are much larger than that it may cause prob
 2. The script does not roll back if a deploy fails.
 3. There is no integration with Git, like there is in the official EB cli. This script only takes a readymade zip file and
 deploys it.
-
-Finally, if you also want a nice GitHub Action to generate sequential build numbers, check out 
-https://github.com/einaregilsson/build-number

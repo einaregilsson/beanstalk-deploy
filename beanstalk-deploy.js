@@ -156,7 +156,7 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
         expect(200, result);
         console.log(`Created new application version ${versionLabel} in Beanstalk.`);
         if (!environmentName) {
-            console.log('No environment name given, so exiting now without deploying the new version ${versionLabel} anywhere.');
+            console.log(`No environment name given, so exiting now without deploying the new version ${versionLabel} anywhere.`);
             process.exit(0);
         }
         deployStart = new Date();
