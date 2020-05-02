@@ -38,6 +38,9 @@ inputs:
   wait_for_environment_recovery:
     description: 'How many seconds to wait for the environment to return to Green state after deployment is finished. Default is 30 seconds.'
     required: false
+  region_specific_s3:
+    description: 'If your s3 bucket is region specific e.g. bucketname.s3.af-south-1.amazonaws.com . Default is false.'
+    required: false
 
 branding:
   icon: 'arrow-up'  

@@ -18,10 +18,10 @@ function createStorageLocation() {
     });
 }
 
-function checkIfFileExistsInS3(bucket, s3Key) {
+function checkIfFileExistsInS3(bucket, s3Key, regionSpecificS3) {
     return awsApiRequest({
         service : 's3', 
-        host: `${bucket}.s3.amazonaws.com`,
+        host: `${bucket}.s3${regionSpecificS3?`.${awsApiRequest.region}`:``}.amazonaws.com`,
         path : s3Key,
         method: 'HEAD'
     });
@@ -38,10 +38,10 @@ function readFile(path) {
     });
 }
 
-function uploadFileToS3(bucket, s3Key, filebuffer) {
+function uploadFileToS3(bucket, s3Key, filebuffer, regionSpecificS3) {
     return awsApiRequest({
         service : 's3', 
-        host: `${bucket}.s3.amazonaws.com`,
+        host: `${bucket}.s3${regionSpecificS3?`.${awsApiRequest.region}`:``}.amazonaws.com`,
         path : s3Key,
         method: 'PUT',
         headers: { 'Content-Type' : 'application/octet-stream'},
@@ -129,7 +129,7 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds, regionSpecificS3) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
@@ -141,13 +141,13 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
         expect(200, result );
         bucket = result.data.CreateStorageLocationResponse.CreateStorageLocationResult.S3Bucket;
         console.log(`Uploading file to bucket ${bucket}`);
-        return checkIfFileExistsInS3(bucket, s3Key);
+        return checkIfFileExistsInS3(bucket, s3Key, regionSpecificS3);
     }).then(result => {
         if (result.statusCode === 200) {
             throw new Error(`Version ${versionLabel} already exists in S3!`);
         }
         expect(404, result); 
-        return uploadFileToS3(bucket, s3Key, fileBuffer);
+        return uploadFileToS3(bucket, s3Key, fileBuffer, regionSpecificS3);
     }).then(result => {
         expect(200, result);
         console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
@@ -234,6 +234,7 @@ function main() {
         useExistingVersionIfAvailable, 
         waitForRecoverySeconds = 30, 
         waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
+        regionSpecificS3 = false
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
@@ -255,6 +256,8 @@ function main() {
         }
         useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
 
+        regionSpecificS3 = process.env.INPUT_REGION_SPECIFIC_S3 == 'true' || process.env.INPUT_REGION_SPECIFIC_S3 == 'True';
+
     } else { //Running as command line script
         if (process.argv.length < 6) {
             console.log('\nbeanstalk-deploy: Deploy a zip file to AWS Elastic Beanstalk');
@@ -265,13 +268,14 @@ function main() {
             process.exit(1);
         }
 
-        [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
+        [application, environmentName, versionLabel, region, file, regionSpecificS3] = process.argv.slice(2);
         versionDescription = ''; //Not available for this.
         useExistingVersionIfAvailable = false; //This option is not available in the console version
 
         awsApiRequest.accessKey = strip(process.env.AWS_ACCESS_KEY_ID);
         awsApiRequest.secretKey = strip(process.env.AWS_SECRET_ACCESS_KEY);
         awsApiRequest.region = strip(region);
+        regionSpecificS3 = regionSpecificS3 === 'true' ? true: false
     }
 
     console.log('Beanstalk-Deploy: GitHub Action for deploying to Elastic Beanstalk.');
@@ -293,16 +297,17 @@ function main() {
 
 
     console.log(' ***** Input parameters were: ***** ');
-    console.log('         Application: ' + application);
-    console.log('         Environment: ' + environmentName);
-    console.log('       Version Label: ' + versionLabel);
-    console.log(' Version description: ' + versionDescription);
-    console.log('          AWS Region: ' + awsApiRequest.region);
-    console.log('                File: ' + file);
-    console.log('      AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
-    console.log('      AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
-    console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
-    console.log('  Recovery wait time: ' + waitForRecoverySeconds);
+    console.log('           Application: ' + application);
+    console.log('           Environment: ' + environmentName);
+    console.log('         Version Label: ' + versionLabel);
+    console.log('   Version description: ' + versionDescription);
+    console.log('            AWS Region: ' + awsApiRequest.region);
+    console.log('                  File: ' + file);
+    console.log('        AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
+    console.log('        AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
+    console.log('   Wait for deployment: ' + waitUntilDeploymentIsFinished);
+    console.log('    Recovery wait time: ' + waitForRecoverySeconds);
+    console.log('Region specific bucket: ' + regionSpecificS3);
     console.log('');
 
     getApplicationVersion(application, versionLabel).then(result => {
@@ -325,12 +330,12 @@ function main() {
                     console.log(`Ignoring deployment package ${file} since version ${versionLabel} already exists and "use_existing_version_if_available" is set to true.`);
                 }
                 console.log(`Deploying existing version ${versionLabel}, version info:`);
-                console.log(JSON.stringify(versionsList[0], null, 2));
-                deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
+                console.log(JSON.stringify(versionsList[0], null, 2)); 
+                deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds, regionSpecificS3);
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds, regionSpecificS3);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
