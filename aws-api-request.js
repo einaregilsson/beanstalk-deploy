@@ -93,7 +93,16 @@ function awsApiRequest(options) {
             if (err) {
                 reject(err);
             } else {
-                resolve(result);
+                if (result.statusCode >= 300 && result.statusCode < 400 && result.headers.location) {
+                    const url = new URL(result.headers.location);
+                    headers.Host = url.hostname;
+                    resolve(awsApiRequest({
+                        ...options,
+                        host: url.hostname
+                    }));
+                } else {
+                    resolve(result);
+                }
             }
         });
     });
