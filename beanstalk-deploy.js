@@ -245,6 +245,7 @@ function main() {
 
         awsApiRequest.accessKey = strip(process.env.INPUT_AWS_ACCESS_KEY);
         awsApiRequest.secretKey = strip(process.env.INPUT_AWS_SECRET_KEY);
+        awsApiRequest.sessionToken = strip(process.env.INPUT_AWS_SESSION_TOKEN);
         awsApiRequest.region = strip(process.env.INPUT_REGION);
 
         if ((process.env.INPUT_WAIT_FOR_DEPLOYMENT || '').toLowerCase() == 'false') {
@@ -272,6 +273,7 @@ function main() {
 
         awsApiRequest.accessKey = strip(process.env.AWS_ACCESS_KEY_ID);
         awsApiRequest.secretKey = strip(process.env.AWS_SECRET_ACCESS_KEY);
+        awsApiRequest.sessionToken = strip(process.env.AWS_SESSION_TOKEN);
         awsApiRequest.region = strip(region);
     }
 

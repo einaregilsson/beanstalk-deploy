@@ -61,6 +61,8 @@ attempt to deploy that. In the example below the action would attempt do deploy 
 
 ### Optional parameters
 
+`aws_session_token`: If you are running the action with temporary security credentials using the AWS Security Token Service API. For example, you may be assuming a role in AWS to execute the deploy through something like AWS's [`configure-aws-credentials`](https://github.com/aws-actions/configure-aws-credentials) action.
+
 `use_existing_version_if_available`: This can be set to `true` and then
 the program will deploy a version already in Elastic Beanstalk if it exists, but if it doesn't exist it will create it
 from the deployment package you specify. This can be useful when deploying to multiple environments, based on commit message.
