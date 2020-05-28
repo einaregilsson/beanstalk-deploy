@@ -8,6 +8,7 @@ function awsApiRequest(options) {
             service = options.service,
             accessKey = options.accessKey || awsApiRequest.accessKey || process.env.AWS_ACCESS_KEY_ID,
             secretKey = options.secretKey || awsApiRequest.secretKey || process.env.AWS_SECRET_ACCESS_KEY,
+            sessionToken = options.sessionToken || awsApiRequest.sessionToken || process.env.AWS_SESSION_TOKEN,
             method = options.method || 'GET',
             path = options.path || '/',
             querystring = options.querystring || {},
@@ -72,13 +73,15 @@ function awsApiRequest(options) {
         let timestamp = new Date().toISOString().replace(/(-|:|\.\d\d\d)/g, ''); // YYYYMMDD'T'HHmmSS'Z'
         let datestamp = timestamp.substr(0,8);
 
+        let sessionTokenHeader = sessionToken ? {'x-amz-security-token': sessionToken} : {};
+
         let reqHeaders = Object.assign({
             Accept : 'application/json',
             Host : host,
             'Content-Type' : 'application/json',
             'x-amz-date' : timestamp,
             'x-amz-content-sha256' : sha256(payload)
-        }, headers); // Passed in headers override these...
+        }, sessionTokenHeader, headers); // Passed in headers override these...
 
         let canonicalRequest = createCanonicalRequest(method, path, querystring, reqHeaders, payload);
         let stringToSign = createStringToSign(timestamp, region, service, canonicalRequest);
