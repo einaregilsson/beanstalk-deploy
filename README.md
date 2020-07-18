@@ -85,6 +85,8 @@ triggered the build, `version_description: ${{github.SHA}}`.
 `environment_name`: In version 10 this parameter becomes optional. If you don't pass an environment in the action will simply create
 the version but not deploy it anywhere.
 
+`get_eb_environment`: If you want to get the Elastic Beanstalk's environment of the current deployed application.
+
 ### Failure modes
 If you're uploading a new version the action will fail if that file already exists in S3, if the application version
 exists in Beanstalk and of course if the deployment fails. The action will wait until Beanstalk reports that the

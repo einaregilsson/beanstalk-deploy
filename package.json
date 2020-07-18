@@ -4,6 +4,7 @@
   "description": "GitHub Action + command line tool to deploy to AWS Elastic Beanstalk.",
   "main": "beanstalk-deploy.js",
   "scripts": {
+	"install": "npm ci",
     "test": "echo \"Error: no test specified\" && exit 1"
   },
   "bin" : { "beanstalk-deploy" : "./beanstalk-deploy.js"},
@@ -23,5 +24,8 @@
   "bugs": {
     "url": "https://github.com/einaregilsson/beanstalk-deploy/issues"
   },
-  "homepage": "https://github.com/einaregilsson/beanstalk-deploy#readme"
+  "homepage": "https://github.com/einaregilsson/beanstalk-deploy#readme",
+  "dependencies": {
+    "@actions/core": "^1.2.4"
+  }
 }

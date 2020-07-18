@@ -3,6 +3,7 @@ description: 'Deploy a zip file to AWS Elastic Beanstalk'
 author: 'Einar Egilsson'
 runs:
   using: 'node12'
+  pre: 'npm ci'
   main: 'beanstalk-deploy.js'
 inputs:
   aws_access_key:
@@ -41,6 +42,12 @@ inputs:
   wait_for_environment_recovery:
     description: 'How many seconds to wait for the environment to return to Green state after deployment is finished. Default is 30 seconds.'
     required: false
+  get_eb_environment:
+    description: 'Get the current elastic beanstalk environment of the deployed application.'
+    required: false
+outputs:
+  eb_env:
+    description: 'The current environment of the deployed application.'
 
 branding:
   icon: 'arrow-up'  

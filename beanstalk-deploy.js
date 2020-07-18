@@ -3,6 +3,7 @@
 
 const awsApiRequest = require('./aws-api-request');
 const fs = require('fs');
+const core = require('@actions/core');
 
 const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTION;
 
@@ -177,6 +178,7 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
 
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
+            isEnvironmentRequired && core.setOutput("eb_env", envAfterDeployment);
             console.log('Environment update successful!');
             process.exit(0);
         } else {
@@ -206,6 +208,7 @@ function deployExistingVersion(application, environmentName, versionLabel, waitU
         }
     }).then(envAfterDeployment => {
         if (envAfterDeployment.Health === 'Green') {
+            isEnvironmentRequired && core.setOutput("eb_env", envAfterDeployment);
             console.log('Environment update successful!');
             process.exit(0);
         } else {
@@ -234,7 +237,8 @@ function main() {
         file, 
         useExistingVersionIfAvailable, 
         waitForRecoverySeconds = 30, 
-        waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
+        waitUntilDeploymentIsFinished = true, //Whether or not to wait for the deployment to complete...
+        isEnvironmentRequired = false;
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
@@ -256,6 +260,10 @@ function main() {
             waitForRecoverySeconds = parseInt(process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY);
         }
         useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
+		
+		if ((process.env.INPUT_GET_EB_ENVIRONMENT || '').toLowerCase() == 'true') {
+            isEnvironmentRequired = true;
+        }
 
     } else { //Running as command line script
         if (process.argv.length < 6) {
@@ -275,6 +283,8 @@ function main() {
         awsApiRequest.secretKey = strip(process.env.AWS_SECRET_ACCESS_KEY);
         awsApiRequest.sessionToken = strip(process.env.AWS_SESSION_TOKEN);
         awsApiRequest.region = strip(region);
+		
+		// TODO maybe add isEnvironmentRequired in the command too instead of only github action
     }
 
     console.log('Beanstalk-Deploy: GitHub Action for deploying to Elastic Beanstalk.');

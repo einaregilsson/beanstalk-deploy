@@ -1,2 +1,4 @@
 test.zip
 
+# Dependency directories
+node_modules/
