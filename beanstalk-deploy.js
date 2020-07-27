@@ -131,7 +131,7 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds, useUploadedFileIfExist) {
 
     let s3Key = `/${application}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
@@ -145,7 +145,9 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
         console.log(`Uploading file to bucket ${bucket}`);
         return checkIfFileExistsInS3(bucket, s3Key);
     }).then(result => {
-        if (result.statusCode === 200) {
+        if (useUploadedFileIfExist && result.statusCode === 200) {
+            return new Promise((resolve, _) => resolve(result));
+        } else if (result.statusCode === 200) {
             throw new Error(`Version ${versionLabel} already exists in S3!`);
         }
         expect(404, result); 
@@ -238,7 +240,8 @@ function main() {
         useExistingVersionIfAvailable, 
         waitForRecoverySeconds = 30, 
         waitUntilDeploymentIsFinished = true, //Whether or not to wait for the deployment to complete...
-        isEnvironmentRequired = false;
+        isEnvironmentRequired = false,
+        useUploadedFileIfExist;
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
@@ -265,6 +268,7 @@ function main() {
             isEnvironmentRequired = true;
         }
 
+        useUploadedFileIfExist = process.env.INPUT_USE_UPLOADED_FILE_IF_EXIST == 'true' || process.env.INPUT_USE_UPLOADED_FILE_IF_EXIST == 'True';
     } else { //Running as command line script
         if (process.argv.length < 6) {
             console.log('\nbeanstalk-deploy: Deploy a zip file to AWS Elastic Beanstalk');
@@ -343,8 +347,8 @@ function main() {
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
-            } else {
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds, useUploadedFileIfExist);
+            } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
             } 

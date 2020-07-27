@@ -44,6 +44,8 @@ inputs:
     required: false
   get_eb_environment:
     description: 'Get the current elastic beanstalk environment of the deployed application.'
+  use_uploaded_file_if_exist:
+    description: 'If set to "true", use the existing file from S3 Bucket if it exist.'
     required: false
 outputs:
   eb_env:
