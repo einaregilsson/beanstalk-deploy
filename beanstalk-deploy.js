@@ -4,7 +4,7 @@
 const awsApiRequest = require('./aws-api-request');
 const fs = require('fs');
 
-const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTION;
+const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTIONS;
 
 if (IS_GITHUB_ACTION) {
     console.error = msg => console.log(`::error::${msg}`);
