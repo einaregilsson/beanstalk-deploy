@@ -26,10 +26,10 @@ jobs:
       uses: actions/checkout@v1
 
     - name: Generate deployment package
-      run: zip deploy.zip *.js *.json *.html *.css
+      run: zip -r deploy.zip . -x '*.git*'
       
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v10
+      uses: einaregilsson/beanstalk-deploy@v11
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -48,7 +48,7 @@ attempt to deploy that. In the example below the action would attempt do deploy 
 
 ```yaml
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v10
+      uses: einaregilsson/beanstalk-deploy@v11
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
