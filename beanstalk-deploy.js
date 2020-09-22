@@ -130,9 +130,14 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
-
-    let s3Key = `/${encodeURIComponent(application)}/${versionLabel}.zip`;
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds, addApplicationNamePrefix) {
+    let s3Key;
+    if(addApplicationNamePrefix) {
+        s3Key = `/${application}/${versionLabel}.zip`;
+    } else {
+        s3Key = `/${versionLabel}.zip`;
+    }
+    
     let bucket, deployStart, fileBuffer;
 
     readFile(file).then(result => {
@@ -234,7 +239,8 @@ function main() {
         file, 
         useExistingVersionIfAvailable, 
         waitForRecoverySeconds = 30, 
-        waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
+        waitUntilDeploymentIsFinished = true, //Whether or not to wait for the deployment to complete...
+        addApplicationNamePrefix = false;
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
@@ -250,6 +256,10 @@ function main() {
 
         if ((process.env.INPUT_WAIT_FOR_DEPLOYMENT || '').toLowerCase() == 'false') {
             waitUntilDeploymentIsFinished = false;
+        }
+        
+        if ((process.env.INPUT_ADD_APP_PREFIX || '').toLowerCase() == 'true') {
+            addApplicationNamePrefix = true;
         }
 
         if (process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY) {
@@ -333,7 +343,7 @@ function main() {
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds, addApplicationNamePrefix);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
