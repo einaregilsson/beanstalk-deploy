@@ -94,7 +94,6 @@ function awsApiRequest(options) {
         //Now, lets finally do a HTTP REQUEST!!!
         request(method, path, reqHeaders, querystring, payload, (err, result) => {
             if (err) {
-                console.log('err', err);
                 reject(err);
             } else {
                 if (result.statusCode >= 300 && result.statusCode < 400 && result.headers.location) {
@@ -131,12 +130,6 @@ function request(method, path, headers, querystring, data, callback) {
     delete headers.Host;
     headers['Content-Length'] = data.length;
     const port = 443;
-    console.log('hostname', hostname);
-    console.log('headers', headers);
-    console.log('qs', qs);
-    console.log('path', path);
-    path = encodeURIComponent(path);
-    console.log('path encoded', path);
     try {
         const options = { hostname, port, path, method, headers };
         const req = https.request(options, res => {
@@ -166,7 +159,6 @@ function request(method, path, headers, querystring, data, callback) {
         }
         req.end();
     } catch(err) {
-        console.log('catch err', err);
         callback(err);
     }
 }
