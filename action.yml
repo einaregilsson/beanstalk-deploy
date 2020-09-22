@@ -41,7 +41,10 @@ inputs:
   wait_for_environment_recovery:
     description: 'How many seconds to wait for the environment to return to Green state after deployment is finished. Default is 30 seconds.'
     required: false
-
+  add_app_prefix:
+    description: 'Add application prefix as folder path while uploading to S3'
+    required: false
+    
 branding:
   icon: 'arrow-up'  
   color: 'green'
