@@ -130,10 +130,7 @@ function request(method, path, headers, querystring, data, callback) {
     delete headers.Host;
     headers['Content-Length'] = data.length;
     const port = 443;
-    console.log('qs', qs);
-    console.log('path', path);
-    console.log('hostname', hostname);
-    console.log('headers', headers);
+    
     try {
         const options = { hostname, port, path, method, headers };
         const req = https.request(options, res => {
