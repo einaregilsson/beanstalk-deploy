@@ -135,6 +135,8 @@ function request(method, path, headers, querystring, data, callback) {
     console.log('headers', headers);
     console.log('qs', qs);
     console.log('path', path);
+    path = encodeURIComponent(path);
+    console.log('path encoded', path);
     try {
         const options = { hostname, port, path, method, headers };
         const req = https.request(options, res => {
