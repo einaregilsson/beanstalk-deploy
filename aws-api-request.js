@@ -94,6 +94,7 @@ function awsApiRequest(options) {
         //Now, lets finally do a HTTP REQUEST!!!
         request(method, path, reqHeaders, querystring, payload, (err, result) => {
             if (err) {
+                console.log('err', err);
                 reject(err);
             } else {
                 if (result.statusCode >= 300 && result.statusCode < 400 && result.headers.location) {
