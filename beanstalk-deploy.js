@@ -240,7 +240,7 @@ function main() {
         useExistingVersionIfAvailable, 
         waitForRecoverySeconds = 30, 
         waitUntilDeploymentIsFinished = true, //Whether or not to wait for the deployment to complete...
-        addApplicationNamePrefix = false;
+        addApplicationNamePrefix = true;
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
@@ -258,8 +258,8 @@ function main() {
             waitUntilDeploymentIsFinished = false;
         }
         
-        if ((process.env.INPUT_ADD_APP_PREFIX || '').toLowerCase() == 'true') {
-            addApplicationNamePrefix = true;
+        if ((process.env.INPUT_ADD_APP_PREFIX || '').toLowerCase() == 'false') {
+            addApplicationNamePrefix = false;
         }
 
         if (process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY) {
