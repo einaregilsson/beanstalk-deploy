@@ -132,7 +132,7 @@ function expect(status, result, extraErrorMessage) {
 //Uploads zip file, creates new version and deploys it
 function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
 
-    let s3Key = `/${application}/${versionLabel}.zip`;
+    let s3Key = `/${encodeURIComponent(application)}/${versionLabel}.zip`;
     let bucket, deployStart, fileBuffer;
 
     readFile(file).then(result => {
