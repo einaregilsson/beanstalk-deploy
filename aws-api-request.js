@@ -1,6 +1,7 @@
 const crypto = require('crypto'),
     https = require('https'),
     zlib = require('zlib');
+const { encode } = require('punycode');
 
 function awsApiRequest(options) {
     return new Promise((resolve, reject) => {
@@ -51,7 +52,14 @@ function awsApiRequest(options) {
         
             let qsKeys = Object.keys(querystring);
             qsKeys.sort();
-            let qsEntries = qsKeys.map(k => `${k}=${encodeURIComponent(querystring[k])}`);
+
+            //encodeURIComponent does NOT encode ', but we need it to be encoded. escape() is considered deprecated, so encode '
+            //manually
+            function encodeValue(v) {
+                return encodeURIComponent(v).replace(/'/g,'%27');
+            }
+
+            let qsEntries = qsKeys.map(k => `${k}=${encodeValue(querystring[k])}`);
             canonical += qsEntries.join('&') + '\n';
         
             let headerKeys = Object.keys(headers).sort();
