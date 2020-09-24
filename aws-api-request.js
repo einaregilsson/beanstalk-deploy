@@ -46,9 +46,13 @@ function awsApiRequest(options) {
             return stringToSign;
         }
         
-        function createCanonicalRequest(method, uri, querystring, headers, payload) {
+        function createCanonicalRequest(method, path, querystring, headers, payload) {
             let canonical = method + '\n';
-            canonical += encodeURI(encodeURI(uri)) + '\n';
+
+            //Changed this from double encoding the path to single encoding it, to make S3 paths with spaces work. However, the documentation said to
+            //double encode it...? The only time we actually encode a path other than / is when uploading to S3 so just change this to single encoding here
+            //but it's possible it will mess up if the path has some weird characters that should be double encoded maybe??? If you had weird symbols in your version number?
+            canonical += encodeURI(path) + '\n';
         
             let qsKeys = Object.keys(querystring);
             qsKeys.sort();
@@ -100,7 +104,7 @@ function awsApiRequest(options) {
         reqHeaders.Authorization = authHeader;
 
         //Now, lets finally do a HTTP REQUEST!!!
-        request(method, path, reqHeaders, querystring, payload, (err, result) => {
+        request(method, encodeURI(path), reqHeaders, querystring, payload, (err, result) => {
             if (err) {
                 reject(err);
             } else {
