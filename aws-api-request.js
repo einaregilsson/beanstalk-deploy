@@ -57,10 +57,11 @@ function awsApiRequest(options) {
             let qsKeys = Object.keys(querystring);
             qsKeys.sort();
 
-            //encodeURIComponent does NOT encode ', but we need it to be encoded. escape() is considered deprecated, so encode '
-            //manually
             function encodeValue(v) {
-                return encodeURIComponent(v).replace(/'/g,'%27');
+                return escape(v);
+                //we actually need to escape a few characters that encodeURIComponent doesn't handle, so
+                //use the deprecated escape instead.
+                //return encodeURIComponent(v).replace(/'/g,'%27');
             }
 
             let qsEntries = qsKeys.map(k => `${k}=${encodeValue(querystring[k])}`);
