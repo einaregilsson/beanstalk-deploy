@@ -145,6 +145,7 @@ function request(method, path, headers, querystring, data, callback) {
     delete headers.Host;
     headers['Content-Length'] = data.length;
     const port = 443;
+    
     try {
         const options = { hostname, port, path, method, headers };
         const req = https.request(options, res => {
