@@ -299,7 +299,7 @@ function main() {
     }
 
     if (versionDescription.length > 200) {
-        versionDescription = versionDescription.substr(0, 186) + ' [...TRUNCATED]';
+        versionDescription = versionDescription.substr(0, 185) + ' [...TRUNCATED]';
     }
 
     console.log(' ***** Input parameters were: ***** ');
