@@ -85,6 +85,11 @@ triggered the build, `version_description: ${{github.SHA}}`.
 `environment_name`: In version 10 this parameter becomes optional. If you don't pass an environment in the action will simply create
 the version but not deploy it anywhere.
 
+### AWS Permissions
+
+It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkService** attached 
+to be able to deploy your project. 
+
 ### Failure modes
 If you're uploading a new version the action will fail if that file already exists in S3, if the application version
 exists in Beanstalk and of course if the deployment fails. The action will wait until Beanstalk reports that the
