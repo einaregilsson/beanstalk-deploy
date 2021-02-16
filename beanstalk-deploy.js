@@ -298,6 +298,9 @@ function main() {
         process.exit(2);
     }
 
+    if (versionDescription.length > 200) {
+        versionDescription = versionDescription.substr(0, 185) + ' [...TRUNCATED]';
+    }
 
     console.log(' ***** Input parameters were: ***** ');
     console.log('         Application: ' + application);
