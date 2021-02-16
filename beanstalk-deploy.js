@@ -298,6 +298,9 @@ function main() {
         process.exit(2);
     }
 
+    if (versionDescription.length > 200) {
+        versionDescription = versionDescription.substr(0, 186) + ' [...TRUNCATED]';
+    }
 
     console.log(' ***** Input parameters were: ***** ');
     console.log('         Application: ' + application);
@@ -311,17 +314,6 @@ function main() {
     console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
     console.log('  Recovery wait time: ' + waitForRecoverySeconds);
     console.log('');
-
-console.log('VERSINLENTH IS ' + versionDescription.length);
-    for (let i=0; i < versionDescription.length; i++) {
-        console.log('CHAR ' + i + ' is ' + versionDescription.charAt(i) +' : ' + versionDescription.charCodeAt(i));
-    }
-
-    let other = 't\n\na';
-    console.log('TEST INLINE');
-    for (let i=0; i < other.length; i++) {
-        console.log('CHAR ' + i + ' is ' + other.charAt(i) +' : ' + other.charCodeAt(i));
-    }
 
     getApplicationVersion(application, versionLabel).then(result => {
 
