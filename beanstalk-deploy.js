@@ -312,6 +312,7 @@ function main() {
     console.log('  Recovery wait time: ' + waitForRecoverySeconds);
     console.log('');
 
+console.log('VERSINLENTH IS ' + versionDescription.length);
     for (let i=0; i < versionDescription.length; i++) {
         console.log('CHAR ' + i + ' is ' + versionDescription.charAt(i) +' : ' + versionDescription.charCodeAt(i));
     }
