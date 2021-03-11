@@ -17,6 +17,10 @@ function awsApiRequest(options) {
             host = options.host || `${service}.${region}.amazonaws.com`,
             headers = options.headers || {};
 
+            if (region.match(/^cn-/)) {
+                host += '.cn'; //Special case for AWS China...
+            }
+
         function hmacSha256(data, key, hex=false) {
             return crypto.createHmac('sha256', key).update(data).digest(hex ? 'hex' : undefined);
         }
