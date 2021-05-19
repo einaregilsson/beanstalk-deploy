@@ -193,13 +193,37 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
     }); 
 }
 
+function wasThrottled(result) {
+    return result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code === 'Throttling';   
+}
+
+var deployVersionConsecutiveThrottlingErrors = 0;
 //Deploys existing version in EB
 function deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
     let deployStart = new Date();
     console.log(`Deploying existing version ${versionLabel}`);
 
+
     deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
-        expect(200, result);
+
+        if (result.statusCode !== 200) { 
+            if (result.headers['content-type'] !== 'application/json') { //Not something we know how to handle ...
+                throw new Error(`Status: ${result.statusCode}. Message: ${result.data}`);
+            } else if (wasThrottled(result)) {
+                deployVersionConsecutiveThrottlingErrors++;
+
+                if (deployVersionConsecutiveThrottlingErrors >= 5) {
+                    throw new Error(`Deployment failed, got ${deployVersionConsecutiveThrottlingErrors} throttling errors in a row while deploying existing version.`);
+                } else {
+                    console.log(`Call to deploy version was throttled. Waiting for 10 seconds before trying again ...`);
+                    setTimeout(() => deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds), 10 * 1000);
+                    return;
+                }
+            } else {
+                throw new Error(`Status: ${result.statusCode}. Code: ${result.data.Error.Code}, Message: ${result.data.Error.Message}`);
+            }
+        }
+
         if (waitUntilDeploymentIsFinished) {
             console.log('Deployment started, "wait_for_deployment" was true...\n');
             return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
@@ -394,7 +418,7 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
 
                 
                 //Allow a few throttling failures...
-                if (result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code == 'Throttling') {
+                if (wasThrottled(result)) {
                     consecutiveThrottleErrors++;
                     console.log(`Request to DescribeEvents was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
                     return;
@@ -420,7 +444,7 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
                 environmentCalls++;
 
                 //Allow a few throttling failures...
-                if (result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code == 'Throttling') {
+                if (wasThrottled(result)) {
                     consecutiveThrottleErrors++;
                     console.log(`Request to DescribeEnvironments was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
                     if (consecutiveThrottleErrors >= 5) {
