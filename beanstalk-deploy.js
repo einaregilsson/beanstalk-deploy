@@ -22,7 +22,7 @@ function checkIfFileExistsInS3(bucket, s3Key) {
 
     return awsApiRequest({
         service : 's3', 
-        host: `${bucket}.s3.amazonaws.com`,
+        host: `${bucket}.s3.${awsApiRequest.region}.amazonaws.com`,
         path : s3Key,
         method: 'HEAD'
     });
@@ -42,7 +42,7 @@ function readFile(path) {
 function uploadFileToS3(bucket, s3Key, filebuffer) {
     return awsApiRequest({
         service : 's3', 
-        host: `${bucket}.s3.amazonaws.com`,
+        host: `${bucket}.s3.${awsApiRequest.region}.amazonaws.com`,
         path : s3Key,
         method: 'PUT',
         headers: { 'Content-Type' : 'application/octet-stream'},
