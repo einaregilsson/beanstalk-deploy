@@ -215,9 +215,9 @@ function deployExistingVersion(application, environmentName, versionLabel, waitU
                 if (deployVersionConsecutiveThrottlingErrors >= 5) {
                     throw new Error(`Deployment failed, got ${deployVersionConsecutiveThrottlingErrors} throttling errors in a row while deploying existing version.`);
                 } else {
-                    console.log(`Call to deploy version was throttled. Waiting for 10 seconds before trying again ...`);
-                    setTimeout(() => deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds), 10 * 1000);
-                    return;
+                    return new Promise((resolve, reject) => {
+                        reject({Code: 'Throttled'});
+                    });
                 }
             } else {
                 throw new Error(`Status: ${result.statusCode}. Code: ${result.data.Error.Code}, Message: ${result.data.Error.Message}`);
@@ -241,8 +241,14 @@ function deployExistingVersion(application, environmentName, versionLabel, waitU
             process.exit(1);
         }
     }).catch(err => {
-        console.error(`Deployment failed: ${err}`);
-        process.exit(2);
+
+        if (err.Code === 'Throttled') {
+            console.log(`Call to deploy version was throttled. Waiting for 10 seconds before trying again ...`);
+            setTimeout(() => deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds), 10 * 1000);
+        } else {
+            console.error(`Deployment failed: ${err}`);
+            process.exit(2);
+        }
     }); 
 }
 
