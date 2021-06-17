@@ -87,7 +87,7 @@ the version but not deploy it anywhere.
 
 ### AWS Permissions
 
-It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkService** attached 
+It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy** attached 
 to be able to deploy your project. 
 
 ### Failure modes
