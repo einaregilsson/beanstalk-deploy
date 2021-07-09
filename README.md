@@ -16,18 +16,18 @@ on:
   push:
     branches:
     - master
-    
+
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-    
+
     - name: Checkout source code
       uses: actions/checkout@v1
 
     - name: Generate deployment package
       run: zip -r deploy.zip . -x '*.git*'
-      
+
     - name: Deploy to EB
       uses: einaregilsson/beanstalk-deploy@v16
       with:
