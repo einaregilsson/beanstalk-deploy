@@ -32,6 +32,9 @@ inputs:
   deployment_package:
     description: 'Zip file with the version to deploy. If skipped the action will deploy existing version.'
     required: false
+  existing_bucket_name:
+    description: 'Whether the action should skip creating a new bucket and use the given one to upload the deployment package to instead. When omitted the actions will (try to) create a new one during deployment.'
+    required: false
   use_existing_version_if_available:
     description: 'If set to "true" then the action will deploy an existing version with the given version_label if it already exists, but otherwise create the version and deploy it.'
     required: false

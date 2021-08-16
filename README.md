@@ -85,6 +85,10 @@ triggered the build, `version_description: ${{github.SHA}}`.
 `environment_name`: In version 10 this parameter becomes optional. If you don't pass an environment in the action will simply create
 the version but not deploy it anywhere.
 
+`existing_bucket_name` *(since v18)*: Use this to provide an existing bucket name to upload your deployment package to.
+*It will prevent the action from (re)creating a bucket during deployment as well.*
+Omit this parameter to have this action creating the bucket. The latter requires the API key used to have the applicable permissions. 
+
 ### AWS Permissions
 
 It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy** attached 
