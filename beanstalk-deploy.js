@@ -130,22 +130,29 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
-
-    //Lots of characters that will mess up an S3 filename, so only allow alphanumeric, - and _ in the actual file name. 
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
+    //Lots of characters that will mess up an S3 filename, so only allow alphanumeric, - and _ in the actual file name.
     //The version label can still contain all that other stuff though.
     let s3filename = versionLabel.replace(/[^a-zA-Z0-9-_]/g, '-');
 
     let s3Key = `/${application}/${s3filename}.zip`;
-    let bucket, deployStart, fileBuffer;
+    let deployStart, fileBuffer;
 
     readFile(file).then(result => {
         fileBuffer = result;
-        return createStorageLocation();
+
+        if (bucket === null) {
+            console.log(`No existing bucket name given, creating/requesting storage location`);
+            return createStorageLocation();
+        }
     }).then(result => {
-        expect(200, result );
-        bucket = result.data.CreateStorageLocationResponse.CreateStorageLocationResult.S3Bucket;
+        if (bucket === null) {
+            expect(200, result, 'Failed to create storage location');
+            bucket = result.data.CreateStorageLocationResponse.CreateStorageLocationResult.S3Bucket;
+        }
+
         console.log(`Uploading file to bucket ${bucket}`);
+
         return checkIfFileExistsInS3(bucket, s3Key);
     }).then(result => {
         if (result.statusCode === 200) {
@@ -265,7 +272,8 @@ function main() {
         versionLabel,
         versionDescription,
         region, 
-        file, 
+        file,
+        existingBucketName = null,
         useExistingVersionIfAvailable, 
         waitForRecoverySeconds = 30, 
         waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
@@ -281,6 +289,10 @@ function main() {
         awsApiRequest.secretKey = strip(process.env.INPUT_AWS_SECRET_KEY);
         awsApiRequest.sessionToken = strip(process.env.INPUT_AWS_SESSION_TOKEN);
         awsApiRequest.region = strip(process.env.INPUT_REGION);
+
+        if (process.env.INPUT_EXISTING_BUCKET_NAME) {
+            existingBucketName = strip(process.env.INPUT_EXISTING_BUCKET_NAME);
+        }
 
         if ((process.env.INPUT_WAIT_FOR_DEPLOYMENT || '').toLowerCase() == 'false') {
             waitUntilDeploymentIsFinished = false;
@@ -339,6 +351,7 @@ function main() {
     console.log(' Version description: ' + versionDescription);
     console.log('          AWS Region: ' + awsApiRequest.region);
     console.log('                File: ' + file);
+    console.log('Existing bucket Name: ' + existingBucketName);
     console.log('      AWS Access Key: ' + awsApiRequest.accessKey.length + ' characters long, starts with ' + awsApiRequest.accessKey.charAt(0));
     console.log('      AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
     console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
@@ -370,7 +383,7 @@ function main() {
             } 
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, existingBucketName, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);

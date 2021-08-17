@@ -29,7 +29,7 @@ jobs:
       run: zip -r deploy.zip . -x '*.git*'
 
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v16
+      uses: einaregilsson/beanstalk-deploy@v18
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -43,12 +43,12 @@ jobs:
 ### Deploying an existing version
 
 You can also use the action to deploy an existing version. To do this simply omit the ```deployment-package``` input parameter.
-The action will then assume that the version you pass in throught ```version_label``` already exists in Beanstalk and
-attempt to deploy that. In the example below the action would attempt do deploy existing version 12345.
+The action will then assume that the version you pass in through ```version_label``` already exists in Beanstalk and
+attempt to deploy that. In the example below the action would attempt to deploy existing version 12345.
 
 ```yaml
     - name: Deploy to EB
-      uses: einaregilsson/beanstalk-deploy@v16
+      uses: einaregilsson/beanstalk-deploy@v18
       with:
         aws_access_key: ${{ secrets.AWS_ACCESS_KEY_ID }}
         aws_secret_key: ${{ secrets.AWS_SECRET_ACCESS_KEY }}
@@ -85,6 +85,10 @@ triggered the build, `version_description: ${{github.SHA}}`.
 `environment_name`: In version 10 this parameter becomes optional. If you don't pass an environment in the action will simply create
 the version but not deploy it anywhere.
 
+`existing_bucket_name` *(since v18)*: Use this to provide an existing bucket name to upload your deployment package to.
+*It will prevent the action from (re)creating a bucket during deployment as well.*
+Omit this parameter to have the action create the bucket. The latter requires the API key used to have the applicable permissions. 
+
 ### AWS Permissions
 
 It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy** attached 
@@ -119,5 +123,5 @@ everywhere.
 1. The S3 upload is a simple PUT request, we don't handle chunked upload. It has worked fine for files that are a 
 few megabytes in size, if your files are much larger than that it may cause problems.
 2. The script does not roll back if a deploy fails.
-3. There is no integration with Git, like there is in the official EB cli. This script only takes a readymade zip file and
+3. There is no integration with Git, like there is in the official EB cli. This script only takes an already made zip file and
 deploys it.
