@@ -368,8 +368,8 @@ function main() {
         if (versionAlreadyExists) {
 
             if (!environmentName) {
-                console.error(`You have no environment set, so we are trying to only create version ${versionLabel}, but it already exists in Beanstalk!`);
-                process.exit(2);
+                console.log(`No environment set, but the version ${versionLabel} was found - exiting successfully with no change`);
+                process.exit(0);
             } else if (file && !useExistingVersionIfAvailable) {
                 console.error(`Deployment failed: Version ${versionLabel} already exists. Either remove the "deployment_package" parameter to deploy existing version, or set the "use_existing_version_if_available" parameter to "true" to use existing version if it exists and deployment package if it doesn't.`);
                 process.exit(2);
