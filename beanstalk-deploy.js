@@ -479,6 +479,11 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
                 consecutiveThrottleErrors = 0;
                 counter++;
                 let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
+                console.log('********************+');
+                console.log('RESULT FROM DESCRIBEENVIRONMENTS CALL: ');
+                console.log(JSON.stringify(result.data, null, 2));
+                console.log('********************+');
+
                 if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
                     if (!degraded) {
                         console.log(`Deployment finished. Version updated to ${env.VersionLabel}`);
