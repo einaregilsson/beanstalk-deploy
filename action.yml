@@ -36,7 +36,7 @@ inputs:
     description: 'Whether the action should skip creating a new bucket and use the given one to upload the deployment package to instead. When omitted the actions will (try to) create a new one during deployment.'
     required: false
   use_existing_version_if_available:
-    description: 'If set to "true" then the action will deploy an existing version with the given version_label if it already exists, but otherwise create the version and deploy it.'
+    description: 'If set to "true" then the action will deploy an existing version with the given version_label if it already exists, but otherwise create the version and deploy it. If set to true for an action with no environment name it will upload a version if it does not exist already, but do nothing if the version already exists.'
     required: false
   wait_for_deployment:
     description: 'Whether the action should wait for the deployment to finish and log status messages during the wait. Default is "true". If set to "false" the action will start the deployment on Beanstalk and then exit.'
