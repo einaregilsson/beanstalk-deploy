@@ -6,6 +6,8 @@ const fs = require('fs');
 
 const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTIONS;
 
+let MAX_WAIT_DEPTH = 7;
+
 if (IS_GITHUB_ACTION) {
     console.error = msg => console.log(`::error::${msg}`);
     console.warn = msg => console.log(`::warning::${msg}`);
@@ -129,6 +131,27 @@ function expect(status, result, extraErrorMessage) {
     }
 }
 
+// c.o. https://advancedweb.hu/how-to-implement-an-exponential-backoff-retry-strategy-in-javascript/
+const wait = (ms) => new Promise((res) => setTimeout(res, ms));
+const callWithRetry = async (name, fn, depth = 0) => {
+    try {
+        return await fn();
+    } catch (e) {
+        console.log(`Request ${name} received error: ${e}`);
+
+        // We only keep 400's, and up to a certain effort
+        if (!e.statusCode === 400 || depth > MAX_WAIT_DEPTH) {
+            throw e;
+        }
+
+        let backoffLength = 2 ** depth * 10;
+        console.log(`This request has failed ${depth} times... Sleeping for ${backoffLength} seconds.`);
+        await wait(backoffLength);
+
+        return callWithRetry(name, fn, depth + 1);
+    }
+}
+
 //Uploads zip file, creates new version and deploys it
 function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
     //Lots of characters that will mess up an S3 filename, so only allow alphanumeric, - and _ in the actual file name.
@@ -163,7 +186,7 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
     }).then(result => {
         expect(200, result);
         console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
-        return createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription);
+        return callWithRetry("Create Beanstalk version", function () { createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription); }, 0);
     }).then(result => {
         expect(200, result);
         console.log(`Created new application version ${versionLabel} in Beanstalk.`);
@@ -173,7 +196,7 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
         }
         deployStart = new Date();
         console.log(`Starting deployment of version ${versionLabel} to environment ${environmentName}`);
-        return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
+        return callWithRetry("Deploy Beanstalk Version", function () { deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds); }, 0);
     }).then(result => {
         expect(200, result);
 
@@ -197,66 +220,46 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
     }).catch(err => {
         console.error(`Deployment failed: ${err}`);
         process.exit(2);
-    }); 
+    });
 }
 
-function wasThrottled(result) {
-    return result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code === 'Throttling';   
-}
-
-var deployVersionConsecutiveThrottlingErrors = 0;
 //Deploys existing version in EB
 function deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
     let deployStart = new Date();
     console.log(`Deploying existing version ${versionLabel}`);
 
 
-    deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
+    callWithRetry(function () { deployBeanstalkVersion(application, environmentName, versionLabel) }, "Deploy Beanstalk Version", 0)
+        .then(result => {
 
-        if (result.statusCode !== 200) { 
-            if (result.headers['content-type'] !== 'application/json') { //Not something we know how to handle ...
-                throw new Error(`Status: ${result.statusCode}. Message: ${result.data}`);
-            } else if (wasThrottled(result)) {
-                deployVersionConsecutiveThrottlingErrors++;
-
-                if (deployVersionConsecutiveThrottlingErrors >= 5) {
-                    throw new Error(`Deployment failed, got ${deployVersionConsecutiveThrottlingErrors} throttling errors in a row while deploying existing version.`);
+            if (result.statusCode !== 200) {
+                if (result.headers['content-type'] !== 'application/json') { //Not something we know how to handle ...
+                    throw new Error(`Status: ${result.statusCode}. Message: ${result.data}`);
                 } else {
-                    return new Promise((resolve, reject) => {
-                        reject({Code: 'Throttled'});
-                    });
+                    throw new Error(`Status: ${result.statusCode}. Code: ${result.data.Error.Code}, Message: ${result.data.Error.Message}`);
                 }
-            } else {
-                throw new Error(`Status: ${result.statusCode}. Code: ${result.data.Error.Code}, Message: ${result.data.Error.Message}`);
             }
-        }
 
-        if (waitUntilDeploymentIsFinished) {
-            console.log('Deployment started, "wait_for_deployment" was true...\n');
-            return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
-        } else {
-            console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
-            console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
-            process.exit(0);
-        }
-    }).then(envAfterDeployment => {
-        if (envAfterDeployment.Health === 'Green') {
-            console.log('Environment update successful!');
-            process.exit(0);
-        } else {
-            console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
-            process.exit(1);
-        }
-    }).catch(err => {
-
-        if (err.Code === 'Throttled') {
-            console.log(`Call to deploy version was throttled. Waiting for 10 seconds before trying again ...`);
-            setTimeout(() => deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds), 10 * 1000);
-        } else {
+            if (waitUntilDeploymentIsFinished) {
+                console.log('Deployment started, "wait_for_deployment" was true...\n');
+                return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+            } else {
+                console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
+                console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
+                process.exit(0);
+            }
+        }).then(envAfterDeployment => {
+            if (envAfterDeployment.Health === 'Green') {
+                console.log('Environment update successful!');
+                process.exit(0);
+            } else {
+                console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
+                process.exit(1);
+            }
+        }).catch(err => {
             console.error(`Deployment failed: ${err}`);
             process.exit(2);
-        }
-    }); 
+        });
 }
 
 
@@ -421,15 +424,11 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
     let waitPeriod = 10 * SECOND; //Start at ten seconds, increase slowly, long deployments have been erroring with too many requests.
     let waitStart = new Date().getTime();
 
-    let eventCalls = 0, environmentCalls = 0; // Getting throttled on these print out how many we're doing...
-
-    let consecutiveThrottleErrors = 0;
-
     return new Promise((resolve, reject) => {
         function update() {
 
             let elapsed = new Date().getTime() - waitStart;
-            
+
             //Limit update requests for really long deploys
             if (elapsed > (10 * MINUTE)) {
                 waitPeriod = 30 * SECOND;
@@ -437,91 +436,70 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
                 waitPeriod = 20 * SECOND;
             }
 
-            describeEvents(application, environmentName, start).then(result => {
-                eventCalls++;
+            callWithRetry("Describe Events", function () { describeEvents(application, environmentName, start); }, 0)
+                .then(result => {
+                    eventCalls++;
 
-                
-                //Allow a few throttling failures...
-                if (wasThrottled(result)) {
-                    consecutiveThrottleErrors++;
-                    console.log(`Request to DescribeEvents was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
-                    return;
-                }
+                    expect(200, result, `Failed in call to describeEvents, ${MAX_WAIT_DEPTH} calls exceeded in ${formatTimespan(waitStart)}`);
 
-                consecutiveThrottleErrors = 0; //Reset the throttling count
-
-                expect(200, result, `Failed in call to describeEvents, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
-                let events = result.data.DescribeEventsResponse.DescribeEventsResult.Events.reverse(); //They show up in desc, we want asc for logging...
-                for (let ev of events) {
-                    let date = new Date(ev.EventDate * 1000); //Seconds to milliseconds,
-                    console.log(`${date.toISOString().substr(11,8)} ${ev.Severity}: ${ev.Message}`);
-                    if (ev.Message.match(/Failed to deploy application/)) {
-                        deploymentFailed = true; //wait until next iteration to finish, to get the final messages...
-                    }
-                }
-                if (events.length > 0) {
-                    start = new Date(events[events.length-1].EventDate * 1000 + 1000); //Add extra second so we don't get the same message next time...
-                }
-            }).catch(reject);
-    
-            describeEnvironments(application, environmentName).then(result => {
-                environmentCalls++;
-
-                //Allow a few throttling failures...
-                if (wasThrottled(result)) {
-                    consecutiveThrottleErrors++;
-                    console.log(`Request to DescribeEnvironments was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
-                    if (consecutiveThrottleErrors >= 5) {
-                        throw new Error(`Deployment failed, got ${consecutiveThrottleErrors} throttling errors in a row while waiting for deployment`);
-                    }
-
-                    setTimeout(update, waitPeriod);
-                    return;
-                }
-
-                expect(200, result, `Failed in call to describeEnvironments, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
-
-                consecutiveThrottleErrors = 0;
-                counter++;
-                let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
-                if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
-                    if (!degraded) {
-                        console.log(`Deployment finished. Version updated to ${env.VersionLabel}`);
-                        console.log(`Status for ${application}-${environmentName} is ${env.Status}, Health: ${env.Health}, HealthStatus: ${env.HealthStatus}`);
-                       
-                        if (env.Health === 'Green') {
-                            resolve(env);   
-                        } else {
-                            console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it ${waitForRecoverySeconds} seconds to recover...`);
-                            degraded = true;
-                            healThreshold = new Date(new Date().getTime() + waitForRecoverySeconds * SECOND);
-                            setTimeout(update, waitPeriod);
+                    let events = result.data.DescribeEventsResponse.DescribeEventsResult.Events.reverse(); //They show up in desc, we want asc for logging...
+                    for (let ev of events) {
+                        let date = new Date(ev.EventDate * 1000); //Seconds to milliseconds,
+                        console.log(`${date.toISOString().substr(11, 8)} ${ev.Severity}: ${ev.Message}`);
+                        if (ev.Message.match(/Failed to deploy application/)) {
+                            deploymentFailed = true; //wait until next iteration to finish, to get the final messages...
                         }
-                    } else {
-                        if (env.Health === 'Green') {
-                            console.log(`Environment has recovered, health is now ${env.Health}, health status is ${env.HealthStatus}`);
-                            resolve(env);
-                        } else {
-                            if (new Date().getTime() > healThreshold.getTime()) {
-                                reject(new Error(`Environment still has health ${env.Health} ${waitForRecoverySeconds} seconds after update finished!`));
+                    }
+                    if (events.length > 0) {
+                        start = new Date(events[events.length - 1].EventDate * 1000 + 1000); //Add extra second so we don't get the same message next time...
+                    }
+                }).catch(reject);
+
+            callWithRetry("Describe Environments", function () { describeEnvironments(application, environmentName); }, 0)
+                .then(result => {
+
+                    expect(200, result, `Failed in call to describeEnvironments, ${MAX_WAIT_DEPTH} calls exceeded in ${formatTimespan(waitStart)}`);
+
+                    counter++;
+                    let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
+                    if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
+                        if (!degraded) {
+                            console.log(`Deployment finished. Version updated to ${env.VersionLabel}`);
+                            console.log(`Status for ${application}-${environmentName} is ${env.Status}, Health: ${env.Health}, HealthStatus: ${env.HealthStatus}`);
+
+                            if (env.Health === 'Green') {
+                                resolve(env);
                             } else {
-                                let left = Math.floor((healThreshold.getTime() - new Date().getTime()) / 1000);
-                                console.warn(`Environment still has health: ${env.Health} and health status ${env.HealthStatus}. Waiting ${left} more seconds before failing...`);
+                                console.warn(`Environment update finished, but health is ${env.Health} and health status is ${env.HealthStatus}. Giving it ${waitForRecoverySeconds} seconds to recover...`);
+                                degraded = true;
+                                healThreshold = new Date(new Date().getTime() + waitForRecoverySeconds * SECOND);
                                 setTimeout(update, waitPeriod);
                             }
+                        } else {
+                            if (env.Health === 'Green') {
+                                console.log(`Environment has recovered, health is now ${env.Health}, health status is ${env.HealthStatus}`);
+                                resolve(env);
+                            } else {
+                                if (new Date().getTime() > healThreshold.getTime()) {
+                                    reject(new Error(`Environment still has health ${env.Health} ${waitForRecoverySeconds} seconds after update finished!`));
+                                } else {
+                                    let left = Math.floor((healThreshold.getTime() - new Date().getTime()) / 1000);
+                                    console.warn(`Environment still has health: ${env.Health} and health status ${env.HealthStatus}. Waiting ${left} more seconds before failing...`);
+                                    setTimeout(update, waitPeriod);
+                                }
+                            }
                         }
+                    } else if (deploymentFailed) {
+                        let msg = `Deployment failed! Current State: Version: ${env.VersionLabel}, Health: ${env.Health}, Health Status: ${env.HealthStatus}`;
+                        console.log(`${new Date().toISOString().substr(11, 8)} ERROR: ${msg}`);
+                        reject(new Error(msg));
+                    } else {
+                        if (counter % 6 === 0 && !deploymentFailed) {
+                            console.log(`${new Date().toISOString().substr(11, 8)} INFO: Still updating, status is "${env.Status}", health is "${env.Health}", health status is "${env.HealthStatus}"`);
+                        }
+                        setTimeout(update, waitPeriod);
                     }
-                } else if (deploymentFailed) {
-                    let msg = `Deployment failed! Current State: Version: ${env.VersionLabel}, Health: ${env.Health}, Health Status: ${env.HealthStatus}`;
-                    console.log(`${new Date().toISOString().substr(11,8)} ERROR: ${msg}`);
-                    reject(new Error(msg));
-                } else {
-                    if (counter % 6 === 0 && !deploymentFailed) {
-                        console.log(`${new Date().toISOString().substr(11,8)} INFO: Still updating, status is "${env.Status}", health is "${env.Health}", health status is "${env.HealthStatus}"`);
-                    }
-                    setTimeout(update, waitPeriod);
-                }
-            }).catch(reject);
+                }).catch(reject);
         }
     
         update();
