@@ -33,7 +33,7 @@ function checkIfFileExistsInS3(bucket, s3Key) {
 function readFile(path) {
     return new Promise((resolve, reject) => {
         fs.readFile(path, (err, data) => {
-            if (err) {
+            if (err) {
                 reject(err);
             }
             resolve(data);
@@ -110,16 +110,24 @@ function getApplicationVersion(application, versionLabel) {
     return awsApiRequest({
         service: 'elasticbeanstalk',
         querystring: {
-            Operation: 'DescribeApplicationVersions', 
+            Operation: 'DescribeApplicationVersions',
             Version: '2010-12-01',
-            ApplicationName : application,
-            'VersionLabels.members.1' : versionLabel //Yes, that's the horrible way to pass an array...
+            ApplicationName: application,
+            'VersionLabels.members.1': versionLabel //Yes, that's the horrible way to pass an array...
         }
     });
 }
 
 function expect(status, result, extraErrorMessage) {
-    if (status !== result.statusCode) { 
+    if (!result) {
+        throw new Error(`Null result received when expecting ${status}`);
+    }
+
+    if (!result.statusCode) {
+        throw new Error(`Provided result ${result} is missing a status code when expecting ${status}`);
+    }
+
+    if (status !== result.statusCode) {
         if (extraErrorMessage) {
             console.log(extraErrorMessage);
         }
@@ -134,13 +142,14 @@ function expect(status, result, extraErrorMessage) {
 // c.o. https://advancedweb.hu/how-to-implement-an-exponential-backoff-retry-strategy-in-javascript/
 const wait = (ms) => new Promise((res) => setTimeout(res, ms));
 const callWithRetry = async (name, fn, depth = 0) => {
+    console.log("Sending ${name} request with exponential back-off...");
     try {
         return await fn();
     } catch (e) {
         console.log(`Request ${name} received error: ${e}`);
 
         // We only keep 400's, and up to a certain effort
-        if (!e.statusCode === 400 || depth > MAX_WAIT_DEPTH) {
+        if (!e.statusCode || !e.statusCode === 400 || depth > MAX_WAIT_DEPTH) {
             throw e;
         }
 
@@ -181,13 +190,13 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
         if (result.statusCode === 200) {
             throw new Error(`Version ${versionLabel} already exists in S3!`);
         }
-        expect(404, result); 
+        expect(404, result);
         return uploadFileToS3(bucket, s3Key, fileBuffer);
     }).then(result => {
         expect(200, result);
         console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
         return callWithRetry("Create Beanstalk version", function () { createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription); }, 0);
-    }).then(result => {
+    }).then(result => {
         expect(200, result);
         console.log(`Created new application version ${versionLabel} in Beanstalk.`);
         if (!environmentName) {
@@ -231,14 +240,7 @@ function deployExistingVersion(application, environmentName, versionLabel, waitU
 
     callWithRetry(function () { deployBeanstalkVersion(application, environmentName, versionLabel) }, "Deploy Beanstalk Version", 0)
         .then(result => {
-
-            if (result.statusCode !== 200) {
-                if (result.headers['content-type'] !== 'application/json') { //Not something we know how to handle ...
-                    throw new Error(`Status: ${result.statusCode}. Message: ${result.data}`);
-                } else {
-                    throw new Error(`Status: ${result.statusCode}. Code: ${result.data.Error.Code}, Message: ${result.data.Error.Message}`);
-                }
-            }
+            expect(200, result, "Failed to deploy an existing version");
 
             if (waitUntilDeploymentIsFinished) {
                 console.log('Deployment started, "wait_for_deployment" was true...\n');
@@ -388,15 +390,15 @@ function main() {
                 console.log(`Deploying existing version ${versionLabel}, version info:`);
                 console.log(JSON.stringify(versionsList[0], null, 2));
                 deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
-            } 
+            }
         } else {
             if (file) {
                 deployNewVersion(application, environmentName, versionLabel, versionDescription, file, existingBucketName, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
-            } else {
+            } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
-            } 
-        } 
+            }
+        }
     }).catch(err => {
         console.error(`Deployment failed: ${err}`);
         process.exit(2);
@@ -501,7 +503,7 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
                     }
                 }).catch(reject);
         }
-    
+
         update();
     });
 }
