@@ -185,8 +185,8 @@ function request(method, path, headers, querystring, data, retryAttempt, callbac
 
     //Test of exponential backoff, use at least 3 attempts for every operation ...
     if (retryAttempt < 3) {
-        callback(null, { statusCode: 400, data : { Error : { Code : 'Throttling'}}});
-        return;
+    //    callback(null, { statusCode: 400, data : { Error : { Code : 'Throttling'}}});
+    //    return;
     }
 
     try {
