@@ -3,7 +3,7 @@ const crypto = require('crypto'),
     zlib = require('zlib');
 const { encode } = require('punycode');
 
-function awsApiRequest(options) {
+function awsApiRequest(options, retryAttempt=0) {
     return new Promise((resolve, reject) => {
         let region = options.region || awsApiRequest.region || process.env.AWS_DEFAULT_REGION,
             service = options.service,
@@ -110,6 +110,8 @@ function awsApiRequest(options) {
 
         reqHeaders.Authorization = authHeader;
 
+        const MAX_RETRY_COUNT = 10;
+
         //Now, lets finally do a HTTP REQUEST!!!
         request(method, encodeURI(path), reqHeaders, querystring, payload, (err, result) => {
             if (err) {
@@ -122,12 +124,43 @@ function awsApiRequest(options) {
                         ...options,
                         host: url.hostname
                     }));
+                } else if (wasThrottled(result)) {
+                    //Exponential backoff with a 500ms jitter
+                    let timeout = Math.pow(2, retryAttempt) * 100 + Math.floor(Math.random() * 500);
+                    //Exponential backoff...
+                    //2~0 * 100 = 100
+                    //2~1 * 100 = 200
+                    //2~2 * 100 = 400
+                    //2~3 * 100 = 800
+                    //2~4 * 100 = 1600
+                    //2~5 * 100 = 3200
+                    //2~6 * 100 = 6400
+                    //2~7 * 100 = 12800
+                    //2~8 * 100 = 25600
+                    //2~9 * 100 = 51200
+
+                    if (retryAttempt > MAX_RETRY_COUNT) {
+                        //Give them the error result, the caller can then deal with it...
+                        console.log(`Retry attempt exceeded max retry count (${MAX_RETRY_COUNT})... Giving up...`);
+                        resolve(result);
+                        return;
+                    }
+                    if (querystring.Operation) {
+                        console.log(`Request for ${querystring.Operation} in ${options.service} was throttled. Retrying in ${timeout}ms...`);
+                    } else {
+                        console.log(`Request for service "${options.service}, path "${options.path}", method "${options.method}" was throttled. Retrying in ${timeout}ms...`);
+                    }
+                    setTimeout(() => resolve(awsApiRequest(options), retryAttempt + 1), timeout);
                 } else {
                     resolve(result);
                 }
             }
         });
     });
+}
+
+function wasThrottled(result) {
+    return result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code === 'Throttling';   
 }
 
 function createResult(data, res) {
