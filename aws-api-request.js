@@ -113,7 +113,7 @@ function awsApiRequest(options, retryAttempt=0) {
         const MAX_RETRY_COUNT = 10;
 
         //Now, lets finally do a HTTP REQUEST!!!
-        request(method, encodeURI(path), reqHeaders, querystring, payload, (err, result) => {
+        request(method, encodeURI(path), reqHeaders, querystring, payload, retryAttempt, (err, result) => {
             if (err) {
                 reject(err);
             } else {
@@ -174,7 +174,7 @@ function createResult(data, res) {
     }
 }
 
-function request(method, path, headers, querystring, data, callback) {
+function request(method, path, headers, querystring, data, retryAttempt, callback) {
     
     let qs = Object.keys(querystring).map(k => `${k}=${encodeURIComponent(querystring[k])}`).join('&');
     path += '?' + qs;
@@ -182,6 +182,13 @@ function request(method, path, headers, querystring, data, callback) {
     delete headers.Host;
     headers['Content-Length'] = data.length;
     const port = 443;
+
+    //Test of exponential backoff, use at least 3 attempts for every operation ...
+    if (retryAttempt < 3) {
+        callback(null, { statusCode: 400, data : { Error : { Code : 'Throttling'}}});
+        return;
+    }
+
     try {
         const options = { hostname, port, path, method, headers };
         const req = https.request(options, res => {
