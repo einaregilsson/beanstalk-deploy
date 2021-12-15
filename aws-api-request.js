@@ -146,11 +146,11 @@ function awsApiRequest(options, retryAttempt=0) {
                         return;
                     }
                     if (querystring.Operation) {
-                        console.log(`Request for ${querystring.Operation} in ${options.service} was throttled. Retrying in ${timeout}ms...`);
+                        console.log(`Request for ${querystring.Operation} in ${options.service} was throttled (retry attempt ${retryAttempt}). Retrying in ${timeout}ms...`);
                     } else {
-                        console.log(`Request for service "${options.service}, path "${options.path}", method "${options.method}" was throttled. Retrying in ${timeout}ms...`);
+                        console.log(`Request for service "${options.service}, path "${options.path}", method "${options.method}" was throttled (retry attempt ${retryAttempt}). Retrying in ${timeout}ms...`);
                     }
-                    setTimeout(() => resolve(awsApiRequest(options), retryAttempt + 1), timeout);
+                    setTimeout(() => resolve(awsApiRequest(options, retryAttempt + 1)), timeout);
                 } else {
                     resolve(result);
                 }
