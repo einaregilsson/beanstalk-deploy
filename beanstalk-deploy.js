@@ -200,36 +200,14 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
     }); 
 }
 
-function wasThrottled(result) {
-    return result.statusCode === 400 && result.data && result.data.Error && result.data.Error.Code === 'Throttling';   
-}
-
-var deployVersionConsecutiveThrottlingErrors = 0;
 //Deploys existing version in EB
 function deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
     let deployStart = new Date();
     console.log(`Deploying existing version ${versionLabel}`);
 
-
     deployBeanstalkVersion(application, environmentName, versionLabel).then(result => {
 
-        if (result.statusCode !== 200) { 
-            if (result.headers['content-type'] !== 'application/json') { //Not something we know how to handle ...
-                throw new Error(`Status: ${result.statusCode}. Message: ${result.data}`);
-            } else if (wasThrottled(result)) {
-                deployVersionConsecutiveThrottlingErrors++;
-
-                if (deployVersionConsecutiveThrottlingErrors >= 5) {
-                    throw new Error(`Deployment failed, got ${deployVersionConsecutiveThrottlingErrors} throttling errors in a row while deploying existing version.`);
-                } else {
-                    return new Promise((resolve, reject) => {
-                        reject({Code: 'Throttled'});
-                    });
-                }
-            } else {
-                throw new Error(`Status: ${result.statusCode}. Code: ${result.data.Error.Code}, Message: ${result.data.Error.Message}`);
-            }
-        }
+        expect(200, result);
 
         if (waitUntilDeploymentIsFinished) {
             console.log('Deployment started, "wait_for_deployment" was true...\n');
@@ -248,14 +226,8 @@ function deployExistingVersion(application, environmentName, versionLabel, waitU
             process.exit(1);
         }
     }).catch(err => {
-
-        if (err.Code === 'Throttled') {
-            console.log(`Call to deploy version was throttled. Waiting for 10 seconds before trying again ...`);
-            setTimeout(() => deployExistingVersion(application, environmentName, versionLabel, waitUntilDeploymentIsFinished, waitForRecoverySeconds), 10 * 1000);
-        } else {
-            console.error(`Deployment failed: ${err}`);
-            process.exit(2);
-        }
+        console.error(`Deployment failed: ${err}`);
+        process.exit(2);
     }); 
 }
 
@@ -421,10 +393,6 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
     let waitPeriod = 10 * SECOND; //Start at ten seconds, increase slowly, long deployments have been erroring with too many requests.
     let waitStart = new Date().getTime();
 
-    let eventCalls = 0, environmentCalls = 0; // Getting throttled on these print out how many we're doing...
-
-    let consecutiveThrottleErrors = 0;
-
     return new Promise((resolve, reject) => {
         function update() {
 
@@ -438,19 +406,8 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
             }
 
             describeEvents(application, environmentName, start).then(result => {
-                eventCalls++;
 
-                
-                //Allow a few throttling failures...
-                if (wasThrottled(result)) {
-                    consecutiveThrottleErrors++;
-                    console.log(`Request to DescribeEvents was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
-                    return;
-                }
-
-                consecutiveThrottleErrors = 0; //Reset the throttling count
-
-                expect(200, result, `Failed in call to describeEvents, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
+                expect(200, result);
                 let events = result.data.DescribeEventsResponse.DescribeEventsResult.Events.reverse(); //They show up in desc, we want asc for logging...
                 for (let ev of events) {
                     let date = new Date(ev.EventDate * 1000); //Seconds to milliseconds,
@@ -465,23 +422,8 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
             }).catch(reject);
     
             describeEnvironments(application, environmentName).then(result => {
-                environmentCalls++;
 
-                //Allow a few throttling failures...
-                if (wasThrottled(result)) {
-                    consecutiveThrottleErrors++;
-                    console.log(`Request to DescribeEnvironments was throttled, that's ${consecutiveThrottleErrors} throttle errors in a row...`);
-                    if (consecutiveThrottleErrors >= 5) {
-                        throw new Error(`Deployment failed, got ${consecutiveThrottleErrors} throttling errors in a row while waiting for deployment`);
-                    }
-
-                    setTimeout(update, waitPeriod);
-                    return;
-                }
-
-                expect(200, result, `Failed in call to describeEnvironments, have done ${eventCalls} calls to describeEvents, ${environmentCalls} calls to describeEnvironments in ${formatTimespan(waitStart)}`);
-
-                consecutiveThrottleErrors = 0;
+                expect(200, result);
                 counter++;
                 let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
                 if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
