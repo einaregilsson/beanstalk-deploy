@@ -1,7 +1,6 @@
 const crypto = require('crypto'),
     https = require('https'),
     zlib = require('zlib');
-const { encode } = require('punycode');
 
 function awsApiRequest(options, retryAttempt = 0) {
     return new Promise((resolve, reject) => {
@@ -141,14 +140,14 @@ function awsApiRequest(options, retryAttempt = 0) {
 
                     if (retryAttempt > MAX_RETRY_COUNT) {
                         //Give them the error result, the caller can then deal with it...
-                        console.log(`Retry attempt exceeded max retry count (${MAX_RETRY_COUNT})... Giving up...`);
+                        console.warn(`Retry attempt exceeded max retry count (${MAX_RETRY_COUNT})... Giving up...`);
                         resolve(result);
                         return;
                     }
                     if (querystring.Operation) {
-                        console.log(`Request for ${querystring.Operation} in ${options.service} was throttled (retry attempt ${retryAttempt}). Retrying in ${timeout}ms...`);
+                        console.warn(`Request for ${querystring.Operation} in ${options.service} was throttled (retry attempt ${retryAttempt}). Retrying in ${timeout}ms...`);
                     } else {
-                        console.log(`Request for service "${options.service}, path "${options.path}", method "${options.method}" was throttled (retry attempt ${retryAttempt}). Retrying in ${timeout}ms...`);
+                        console.warn(`Request for service "${options.service}, path "${options.path}", method "${options.method}" was throttled (retry attempt ${retryAttempt}). Retrying in ${timeout}ms...`);
                     }
                     setTimeout(() => resolve(awsApiRequest(options, retryAttempt + 1)), timeout);
                 } else {
