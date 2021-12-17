@@ -9,6 +9,7 @@ function awsApiRequest(options, retryAttempt = 0) {
             accessKey = options.accessKey || awsApiRequest.accessKey || process.env.AWS_ACCESS_KEY_ID,
             secretKey = options.secretKey || awsApiRequest.secretKey || process.env.AWS_SECRET_ACCESS_KEY,
             sessionToken = options.sessionToken || awsApiRequest.sessionToken || process.env.AWS_SESSION_TOKEN,
+            maxBackoffRetries =  options.maxBackoffRetries || awsApiRequest.maxBackoffRetries || 10,
             method = options.method || 'GET',
             path = options.path || '/',
             querystring = options.querystring || {},
@@ -109,8 +110,6 @@ function awsApiRequest(options, retryAttempt = 0) {
 
         reqHeaders.Authorization = authHeader;
 
-        const MAX_RETRY_COUNT = 10;
-
         //Now, lets finally do a HTTP REQUEST!!!
         request(method, encodeURI(path), reqHeaders, querystring, payload, retryAttempt, (err, result) => {
             if (err) {
@@ -138,7 +137,7 @@ function awsApiRequest(options, retryAttempt = 0) {
                     //2~8 * 100 = 25600
                     //2~9 * 100 = 51200
 
-                    if (retryAttempt > MAX_RETRY_COUNT) {
+                    if (retryAttempt > maxBackoffRetries) {
                         //Give them the error result, the caller can then deal with it...
                         console.warn(`Retry attempt exceeded max retry count (${MAX_RETRY_COUNT})... Giving up...`);
                         resolve(result);

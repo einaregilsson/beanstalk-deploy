@@ -44,6 +44,9 @@ inputs:
   wait_for_environment_recovery:
     description: 'How many seconds to wait for the environment to return to Green state after deployment is finished. Default is 30 seconds.'
     required: false
+  max_backoff_retries:
+    description: 'How many times to exponentially back-off on Throttling exceptions. Default: 10'
+    required: false
 
 branding:
   icon: 'arrow-up'  
