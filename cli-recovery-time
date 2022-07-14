@@ -301,6 +301,10 @@ function main() {
         awsApiRequest.secretKey = strip(process.env.AWS_SECRET_ACCESS_KEY);
         awsApiRequest.sessionToken = strip(process.env.AWS_SESSION_TOKEN);
         awsApiRequest.region = strip(region);
+        
+        if (process.env.WAIT_FOR_ENVIRONMENT_RECOVERY) {
+          waitForRecoverySeconds = parseInt(process.env.WAIT_FOR_ENVIRONMENT_RECOVERY);
+        }        
     }
 
     console.log('Beanstalk-Deploy: GitHub Action for deploying to Elastic Beanstalk.');
