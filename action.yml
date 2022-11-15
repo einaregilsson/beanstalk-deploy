@@ -2,7 +2,7 @@ name: 'Beanstalk Deploy'
 description: 'Deploy a zip file to AWS Elastic Beanstalk'
 author: 'Einar Egilsson'
 runs:
-  using: 'node12'
+  using: 'node16'
   main: 'beanstalk-deploy.js'
 inputs:
   aws_access_key:
