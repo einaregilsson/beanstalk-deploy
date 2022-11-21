@@ -88,7 +88,7 @@ the version but not deploy it anywhere.
 *It will prevent the action from (re)creating a bucket during deployment as well.*
 Omit this parameter to have the action create the bucket. The latter requires the API key used to have the applicable permissions.
 
-`existing_file_name` *(since v21)*: Use this flag to indicate an existing file name on s3 and to avoid upload your deployment package to.
+`existing_file_name` *(since v22)*: Use this flag to indicate an existing file name on s3 and to avoid upload your deployment package to.
 This can be set to `true`. Default is `false`.
 The file to create the new version will be: 
 ```.bash
