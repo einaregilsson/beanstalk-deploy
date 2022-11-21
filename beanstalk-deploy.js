@@ -138,7 +138,7 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds) {
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName) {
     //Lots of characters that will mess up an S3 filename, so only allow alphanumeric, - and _ in the actual file name.
     //The version label can still contain all that other stuff though.
     let s3filename = versionLabel.replace(/[^a-zA-Z0-9-_]/g, '-');
@@ -146,66 +146,104 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
     let s3Key = `/${application}/${s3filename}.zip`;
     let deployStart, fileBuffer;
 
-    readFile(file).then(result => {
-        fileBuffer = result;
+    if (existingFileName) {
+        createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription)
+            .then(result => {
+                expect(200, result);
+                console.log(`Created new application version ${versionLabel} in Beanstalk.`);
+                if (!environmentName) {
+                    console.log(`No environment name given, so exiting now without deploying the new version ${versionLabel} anywhere.`);
+                    process.exit(0);
+                }
+                deployStart = new Date();
+                console.log(`Starting deployment of version ${versionLabel} to environment ${environmentName}`);
+                return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
+            }).then(result => {
+                expect(200, result);
 
-        if (bucket === null) {
-            console.log(`No existing bucket name given, creating/requesting storage location`);
-            return createStorageLocation();
-        }
-    }).then(result => {
-        if (bucket === null) {
-            expect(200, result, 'Failed to create storage location');
-            bucket = result.data.CreateStorageLocationResponse.CreateStorageLocationResult.S3Bucket;
-        }
+                if (waitUntilDeploymentIsFinished) {
+                    console.log('Deployment started, "wait_for_deployment" was true...\n');
+                    return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+                } else {
+                    console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
+                    console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
+                    process.exit(0);
+                }
 
-        console.log(`Uploading file to bucket ${bucket}`);
+            }).then(envAfterDeployment => {
+                if (envAfterDeployment.Health === 'Green') {
+                    console.log('Environment update successful!');
+                    process.exit(0);
+                } else {
+                    console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
+                    process.exit(1);
+                }
+            }).catch(err => {
+                console.error(`Deployment failed: ${err}`);
+                process.exit(2);
+            });
+    } else {
+        readFile(file).then(result => {
+            fileBuffer = result;
 
-        return checkIfFileExistsInS3(bucket, s3Key);
-    }).then(result => {
-        if (result.statusCode === 200) {
-            throw new Error(`Version ${versionLabel} already exists in S3!`);
-        }
-        expect(404, result);
-        return uploadFileToS3(bucket, s3Key, fileBuffer);
-    }).then(result => {
-        expect(200, result);
-        console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
-        return createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription);
-    }).then(result => {
-        expect(200, result);
-        console.log(`Created new application version ${versionLabel} in Beanstalk.`);
-        if (!environmentName) {
-            console.log(`No environment name given, so exiting now without deploying the new version ${versionLabel} anywhere.`);
-            process.exit(0);
-        }
-        deployStart = new Date();
-        console.log(`Starting deployment of version ${versionLabel} to environment ${environmentName}`);
-        return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
-    }).then(result => {
-        expect(200, result);
+            if (bucket === null) {
+                console.log(`No existing bucket name given, creating/requesting storage location`);
+                return createStorageLocation();
+            }
+        }).then(result => {
+            if (bucket === null) {
+                expect(200, result, 'Failed to create storage location');
+                bucket = result.data.CreateStorageLocationResponse.CreateStorageLocationResult.S3Bucket;
+            }
 
-        if (waitUntilDeploymentIsFinished) {
-            console.log('Deployment started, "wait_for_deployment" was true...\n');
-            return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
-        } else {
-            console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
-            console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
-            process.exit(0);
-        }
+            console.log(`Uploading file to bucket ${bucket}`);
 
-    }).then(envAfterDeployment => {
-        if (envAfterDeployment.Health === 'Green') {
-            console.log('Environment update successful!');
-            process.exit(0);
-        } else {
-            console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
-            process.exit(1);
-        }
-    }).catch(err => {
-        console.error(`Deployment failed: ${err}`);
-        process.exit(2);
-    });
+            return checkIfFileExistsInS3(bucket, s3Key);
+        }).then(result => {
+            if (result.statusCode === 200) {
+                throw new Error(`Version ${versionLabel} already exists in S3!`);
+            }
+            expect(404, result);
+            return uploadFileToS3(bucket, s3Key, fileBuffer);
+        }).then(result => {
+            expect(200, result);
+            console.log(`New build successfully uploaded to S3, bucket=${bucket}, key=${s3Key}`);
+            return createBeanstalkVersion(application, bucket, s3Key, versionLabel, versionDescription);
+        }).then(result => {
+            expect(200, result);
+            console.log(`Created new application version ${versionLabel} in Beanstalk.`);
+            if (!environmentName) {
+                console.log(`No environment name given, so exiting now without deploying the new version ${versionLabel} anywhere.`);
+                process.exit(0);
+            }
+            deployStart = new Date();
+            console.log(`Starting deployment of version ${versionLabel} to environment ${environmentName}`);
+            return deployBeanstalkVersion(application, environmentName, versionLabel, waitForRecoverySeconds);
+        }).then(result => {
+            expect(200, result);
+
+            if (waitUntilDeploymentIsFinished) {
+                console.log('Deployment started, "wait_for_deployment" was true...\n');
+                return waitForDeployment(application, environmentName, versionLabel, deployStart, waitForRecoverySeconds);
+            } else {
+                console.log('Deployment started, parameter "wait_for_deployment" was false, so action is finished.');
+                console.log('**** IMPORTANT: Please verify manually that the deployment succeeds!');
+                process.exit(0);
+            }
+
+        }).then(envAfterDeployment => {
+            if (envAfterDeployment.Health === 'Green') {
+                console.log('Environment update successful!');
+                process.exit(0);
+            } else {
+                console.warn(`Environment update finished, but environment health is: ${envAfterDeployment.Health}, HealthStatus: ${envAfterDeployment.HealthStatus}`);
+                process.exit(1);
+            }
+        }).catch(err => {
+            console.error(`Deployment failed: ${err}`);
+            process.exit(2);
+        });
+    }
 }
 
 //Deploys existing version in EB
@@ -256,7 +294,8 @@ function main() {
         existingBucketName = null,
         useExistingVersionIfAvailable,
         waitForRecoverySeconds = 30,
-        waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
+        waitUntilDeploymentIsFinished = false, //Whether or not to wait for the deployment to complete...
+        existingFileName;
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
@@ -282,6 +321,7 @@ function main() {
             waitForRecoverySeconds = parseInt(process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY);
         }
         useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
+        existingFileName = (process.env.INPUT_EXISTING_FILE_NAME || '').toLowerCase() == 'true';
 
     } else { //Running as command line script
         if (process.argv.length < 6) {
@@ -293,7 +333,8 @@ function main() {
             process.exit(1);
         }
 
-        [application, environmentName, versionLabel, region, file] = process.argv.slice(2);
+        [application, environmentName, versionLabel, region, file, existingBucketName, existingFileName] = process.argv.slice(2);
+        existingFileName = (existingFileName || '').toLowerCase() == 'true';
         versionDescription = ''; //Not available for this.
         useExistingVersionIfAvailable = false; //This option is not available in the console version
 
@@ -336,6 +377,7 @@ function main() {
     console.log('      AWS Secret Key: ' + awsApiRequest.secretKey.length + ' characters long, starts with ' + awsApiRequest.secretKey.charAt(0));
     console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
     console.log('  Recovery wait time: ' + waitForRecoverySeconds);
+    console.log('  Existing file Name: ' + existingFileName);
     console.log('');
 
     getApplicationVersion(application, versionLabel).then(result => {
@@ -368,7 +410,7 @@ function main() {
             }
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, existingBucketName, waitUntilDeploymentIsFinished, waitForRecoverySeconds);
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, existingBucketName, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
