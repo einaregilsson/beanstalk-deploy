@@ -141,7 +141,7 @@ function expect(status, result, extraErrorMessage) {
 function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName) {
     //Lots of characters that will mess up an S3 filename, so only allow alphanumeric, - and _ in the actual file name.
     //The version label can still contain all that other stuff though.
-    let s3filename = versionLabel.replace(/[^a-zA-Z0-9-_]/g, '-');
+    let s3filename = versionLabel.replace(/[^a-zA-Z0-9-_.]/g, '-');
 
     let s3Key = `/${application}/${s3filename}.zip`;
     let deployStart, fileBuffer;
