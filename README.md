@@ -88,6 +88,14 @@ the version but not deploy it anywhere.
 *It will prevent the action from (re)creating a bucket during deployment as well.*
 Omit this parameter to have the action create the bucket. The latter requires the API key used to have the applicable permissions.
 
+`existing_file_name` *(since v22)*: Use this flag to indicate an existing file name on s3 and to avoid upload your deployment package to.
+This can be set to `true`. Default is `false`.
+The file to create the new version will be: 
+```.bash
+s3://<BUCKET_NAME>/<APPLICATION_NAME>/<VERSION>.zip
+```
+
+
 ### AWS Permissions
 
 It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy** attached
@@ -110,6 +118,12 @@ defined. Pass the rest of the parameters in on the command line, like so:
 ```.bash
 beanstalk-deploy.js MyApplicationName MyApplication-Environment 12345 us-west-2 deploy.zip
 ```
+
+If the file already exists in the S3 bucket:
+```.bash
+beanstalk-deploy <MyApplicationName> <MyApplication-Environment> <VERSION> <AWS_REGION> <FILE> <BUCKET_NAME> true
+```
+`<FILE>`: is going to be ignored.
 
 Just like in the GitHub action you can skip the final file parameter and the program will attempt to deploy an existing
 version instead.
