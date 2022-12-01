@@ -139,7 +139,7 @@ function awsApiRequest(options, retryAttempt = 0) {
 
                     if (retryAttempt > maxBackoffRetries) {
                         //Give them the error result, the caller can then deal with it...
-                        console.warn(`Retry attempt exceeded max retry count (${MAX_RETRY_COUNT})... Giving up...`);
+                        console.warn(`Retry attempt exceeded max retry count (${maxBackoffRetries})... Giving up...`);
                         resolve(result);
                         return;
                     }
