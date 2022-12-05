@@ -88,6 +88,9 @@ the version but not deploy it anywhere.
 *It will prevent the action from (re)creating a bucket during deployment as well.*
 Omit this parameter to have the action create the bucket. The latter requires the API key used to have the applicable permissions.
 
+`max_backoff_retries` *(since v21)*: Use this if you have a heavy load environment and need more than 10 exponential back-off retries.
+10 retries is about 1m at its maximum.
+
 ### AWS Permissions
 
 It should be enough for your AWS user to have the policies **AWSElasticBeanstalkWebTier** and **AWSElasticBeanstalkManagedUpdatesCustomerRolePolicy** attached

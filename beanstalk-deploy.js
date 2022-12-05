@@ -265,6 +265,7 @@ function main() {
         versionDescription = strip(process.env.INPUT_VERSION_DESCRIPTION);
         file = strip(process.env.INPUT_DEPLOYMENT_PACKAGE);
 
+        awsApiRequest.maxBackoffRetries = strip(process.env.INPUT_MAX_BACKOFF_RETRIES);
         awsApiRequest.accessKey = strip(process.env.INPUT_AWS_ACCESS_KEY);
         awsApiRequest.secretKey = strip(process.env.INPUT_AWS_SECRET_KEY);
         awsApiRequest.sessionToken = strip(process.env.INPUT_AWS_SESSION_TOKEN);
