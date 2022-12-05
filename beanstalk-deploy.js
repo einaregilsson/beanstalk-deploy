@@ -324,6 +324,7 @@ function main() {
         }
         useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
         existingFileName = (process.env.INPUT_EXISTING_FILE_NAME || '').toLowerCase() == 'true';
+        s3folder = process.env.INPUT_S3FOLDER;
 
     } else { //Running as command line script
         if (process.argv.length < 6) {
