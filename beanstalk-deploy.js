@@ -296,7 +296,8 @@ function main() {
         useExistingVersionIfAvailable,
         waitForRecoverySeconds = 30,
         waitUntilDeploymentIsFinished = false, //Whether or not to wait for the deployment to complete...
-        existingFileName;
+        existingFileName,
+        s3folder;
 
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);

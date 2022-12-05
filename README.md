@@ -95,7 +95,7 @@ The file to create the new version will be:
 s3://<BUCKET_NAME>/<APPLICATION_NAME>/<VERSION>.zip
 ```
 
-`s3folder` *(since v24)*: Use this to set the name of the folder where the deployment package is.
+`s3folder` *(since v24)*: Use this to set the name of the folder where the deployment package is. Default value is "application_name".
 The file to create the new version will be:
 ```.bash
 s3://<BUCKET_NAME>/<s3folder>/<VERSION>.zip
