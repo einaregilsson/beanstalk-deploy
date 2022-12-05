@@ -138,12 +138,13 @@ function expect(status, result, extraErrorMessage) {
 }
 
 //Uploads zip file, creates new version and deploys it
-function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName) {
+function deployNewVersion(application, environmentName, versionLabel, versionDescription, file, bucket, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName, s3folder) {
     //Lots of characters that will mess up an S3 filename, so only allow alphanumeric, - and _ in the actual file name.
     //The version label can still contain all that other stuff though.
     let s3filename = versionLabel.replace(/[^a-zA-Z0-9-_.]/g, '-');
 
-    let s3Key = `/${application}/${s3filename}.zip`;
+    let s3Key = `/${s3folder || application}/${s3filename}.zip`;
+
     let deployStart, fileBuffer;
 
     if (existingFileName) {
@@ -333,7 +334,7 @@ function main() {
             process.exit(1);
         }
 
-        [application, environmentName, versionLabel, region, file, existingBucketName, existingFileName] = process.argv.slice(2);
+        [application, environmentName, versionLabel, region, file, existingBucketName, existingFileName, s3folder] = process.argv.slice(2);
         existingFileName = (existingFileName || '').toLowerCase() == 'true';
         versionDescription = ''; //Not available for this.
         useExistingVersionIfAvailable = false; //This option is not available in the console version
@@ -378,6 +379,7 @@ function main() {
     console.log(' Wait for deployment: ' + waitUntilDeploymentIsFinished);
     console.log('  Recovery wait time: ' + waitForRecoverySeconds);
     console.log('  Existing file Name: ' + existingFileName);
+    console.log('           s3 folder: ' + s3folder);
     console.log('');
 
     getApplicationVersion(application, versionLabel).then(result => {
@@ -410,7 +412,7 @@ function main() {
             }
         } else {
             if (file) {
-                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, existingBucketName, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName);
+                deployNewVersion(application, environmentName, versionLabel, versionDescription, file, existingBucketName, waitUntilDeploymentIsFinished, waitForRecoverySeconds, existingFileName, s3folder);
             } else {
                 console.error(`Deployment failed: No deployment package given but version ${versionLabel} doesn't exist, so nothing to deploy!`);
                 process.exit(2);
