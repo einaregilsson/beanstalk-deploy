@@ -143,7 +143,7 @@ function deployNewVersion(application, environmentName, versionLabel, versionDes
     //The version label can still contain all that other stuff though.
     let s3filename = versionLabel.replace(/[^a-zA-Z0-9-_.]/g, '-');
 
-    let s3Key = `/${s3folder || application}/${s3filename}.zip`;
+    let s3Key = `/${s3folder || application}/${s3filename}.jar`;
 
     let deployStart, fileBuffer;
 
