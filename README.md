@@ -126,7 +126,7 @@ Some additional environment variables are available to use functionality availab
 ```.bash
 export INPUT_EXISTING_BUCKET_NAME=elasticbeanstalk-us-east-1-xxxxxxxxxxxx
 export INPUT_WAIT_FOR_DEPLOYMENT=false
-export INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY=20 # Wait for 30 seconds for enironment recovery
+export INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY=20 # Wait for 30 seconds for environment recovery
 ```
 
 ## Caveats
