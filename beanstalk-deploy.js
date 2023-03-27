@@ -426,6 +426,12 @@ function waitForDeployment(application, environmentName, versionLabel, start, wa
 
                 expect(200, result, `Failed in call to describeEnvironments`);
                 counter++;
+
+                if (result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments !== 1) {
+                    console.error(`Deployment failed: Environment ${environmentName} was not returned by DescribeEnvironments. Does the access key have permissions to see this environment?`);
+                    process.exit(2);
+                }
+
                 let env = result.data.DescribeEnvironmentsResponse.DescribeEnvironmentsResult.Environments[0];
                 if (env.VersionLabel === versionLabel && env.Status === 'Ready') {
                     if (!degraded) {
