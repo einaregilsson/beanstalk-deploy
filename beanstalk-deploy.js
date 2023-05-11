@@ -258,7 +258,7 @@ function main() {
         waitForRecoverySeconds = 30,
         waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
 
-    if (IS_GITHUB_ACTION) { //Running in GitHub Actions
+    if (IS_GITHUB_ACTION && !process.env.BEANSTALK_DEPLOY_USE_CLI) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
         environmentName = strip(process.env.INPUT_ENVIRONMENT_NAME);
         versionLabel = strip(process.env.INPUT_VERSION_LABEL);
