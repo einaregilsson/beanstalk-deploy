@@ -1,6 +1,6 @@
 {
   "name": "beanstalk-deploy",
-  "version": "20.0.0",
+  "version": "22.0.0",
   "description": "GitHub Action + command line tool to deploy to AWS Elastic Beanstalk.",
   "main": "beanstalk-deploy.js",
   "scripts": {
