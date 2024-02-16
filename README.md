@@ -121,6 +121,14 @@ The program is available as an [NPM Package](https://www.npmjs.com/package/beans
 ```npm install -g beanstalk-deploy``` and then you'll have the ```beanstalk-deploy``` command (without .js) available
 everywhere.
 
+Some additional environment variables are available to use functionality available in the GitHub Actions version:
+
+```.bash
+export INPUT_EXISTING_BUCKET_NAME=elasticbeanstalk-us-east-1-xxxxxxxxxxxx
+export INPUT_WAIT_FOR_DEPLOYMENT=false
+export INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY=20 # Wait for 30 seconds for environment recovery
+```
+
 ## Caveats
 
 1. The S3 upload is a simple PUT request, we don't handle chunked upload. It has worked fine for files that are a
