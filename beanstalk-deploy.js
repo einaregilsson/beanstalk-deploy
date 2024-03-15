@@ -295,7 +295,7 @@ function main() {
         existingBucketName = null,
         useExistingVersionIfAvailable,
         waitForRecoverySeconds = 30,
-        waitUntilDeploymentIsFinished = false, //Whether or not to wait for the deployment to complete...
+        waitUntilDeploymentIsFinished = true, //Whether or not to wait for the deployment to complete...
         existingFileName,
         s3folder;
 
