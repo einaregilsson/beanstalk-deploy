@@ -5,6 +5,7 @@ const awsApiRequest = require('./aws-api-request');
 const fs = require('fs');
 
 const IS_GITHUB_ACTION = !!process.env.GITHUB_ACTIONS;
+const USE_CLI = !!process.env.BEANSTALK_DEPLOY_USE_CLI;
 
 if (IS_GITHUB_ACTION) {
     console.error = msg => console.log(`::error::${msg}`);
@@ -258,7 +259,7 @@ function main() {
         waitForRecoverySeconds = 30,
         waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
 
-    if (IS_GITHUB_ACTION) { //Running in GitHub Actions
+    if (IS_GITHUB_ACTION && !USE_CLI) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
         environmentName = strip(process.env.INPUT_ENVIRONMENT_NAME);
         versionLabel = strip(process.env.INPUT_VERSION_LABEL);
