@@ -258,6 +258,18 @@ function main() {
         waitForRecoverySeconds = 30,
         waitUntilDeploymentIsFinished = true; //Whether or not to wait for the deployment to complete...
 
+    if (process.env.INPUT_EXISTING_BUCKET_NAME) {
+        existingBucketName = strip(process.env.INPUT_EXISTING_BUCKET_NAME);
+    }
+
+    if ((process.env.INPUT_WAIT_FOR_DEPLOYMENT || '').toLowerCase() == 'false') {
+        waitUntilDeploymentIsFinished = false;
+    }
+
+    if (process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY) {
+        waitForRecoverySeconds = parseInt(process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY);
+    }
+
     if (IS_GITHUB_ACTION) { //Running in GitHub Actions
         application = strip(process.env.INPUT_APPLICATION_NAME);
         environmentName = strip(process.env.INPUT_ENVIRONMENT_NAME);
@@ -271,17 +283,6 @@ function main() {
         awsApiRequest.sessionToken = strip(process.env.INPUT_AWS_SESSION_TOKEN);
         awsApiRequest.region = strip(process.env.INPUT_REGION);
 
-        if (process.env.INPUT_EXISTING_BUCKET_NAME) {
-            existingBucketName = strip(process.env.INPUT_EXISTING_BUCKET_NAME);
-        }
-
-        if ((process.env.INPUT_WAIT_FOR_DEPLOYMENT || '').toLowerCase() == 'false') {
-            waitUntilDeploymentIsFinished = false;
-        }
-
-        if (process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY) {
-            waitForRecoverySeconds = parseInt(process.env.INPUT_WAIT_FOR_ENVIRONMENT_RECOVERY);
-        }
         useExistingVersionIfAvailable = process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'true' || process.env.INPUT_USE_EXISTING_VERSION_IF_AVAILABLE == 'True';
 
     } else { //Running as command line script
